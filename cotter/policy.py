@@ -62,10 +62,18 @@ class TorchPolicy:
         return action.detach().cpu().numpy()
 
 
+def _obs_shape_signature(space: gym.Space):
+    """Comparable shape description for Box and Dict observation spaces."""
+    if isinstance(space, gym.spaces.Dict):
+        return {key: sub.shape for key, sub in space.spaces.items()}
+    return space.shape
+
+
 def validate_spaces(policy: Policy, env: gym.Env) -> None:
     """Check the policy against the env's observation/action spaces.
 
-    For SB3 models the declared spaces are compared shape-for-shape. For
+    For SB3 models the declared spaces are compared shape-for-shape —
+    per key for Dict observation spaces (gymnasium-robotics style). For
     every policy a functional probe is run: predict on a sampled
     observation and verify the returned action's shape and finiteness.
     Raises :class:`SpaceMismatchError` with an actionable message.
@@ -74,12 +82,14 @@ def validate_spaces(policy: Policy, env: gym.Env) -> None:
 
     if isinstance(policy, SB3Policy):
         model = policy.model
-        if model.observation_space.shape != obs_space.shape:
+        expected = _obs_shape_signature(model.observation_space)
+        actual = _obs_shape_signature(obs_space)
+        if expected != actual:
             raise SpaceMismatchError(
                 f"policy '{policy.name}' was trained on observations of shape "
-                f"{model.observation_space.shape} but the environment produces "
-                f"{obs_space.shape}. You are almost certainly loading the wrong "
-                "checkpoint or wrapping the env differently than at training time."
+                f"{expected} but the environment produces {actual}. You are "
+                "almost certainly loading the wrong checkpoint or wrapping the "
+                "env differently than at training time."
             )
         if model.action_space.shape != act_space.shape:
             raise SpaceMismatchError(
@@ -94,8 +104,8 @@ def validate_spaces(policy: Policy, env: gym.Env) -> None:
     except Exception as exc:
         raise SpaceMismatchError(
             f"policy '{policy.name}' failed on a sample observation of shape "
-            f"{np.shape(sample_obs)}: {exc!r}. The policy input layer likely "
-            "does not match the environment's observation space."
+            f"{_obs_shape_signature(obs_space)}: {exc!r}. The policy input "
+            "layer likely does not match the environment's observation space."
         ) from exc
 
     if action.shape != act_space.shape:
