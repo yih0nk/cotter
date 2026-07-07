@@ -92,6 +92,15 @@ class TestEvaluateSafety:
         with pytest.raises(ValueError):
             SafetyLimit(VEL, 0.0)
 
+    def test_empty_quantity_never_violates(self):
+        # A mocap-controlled env exposes a zero-size actuator_forces array;
+        # a limit on it must pass cleanly, not crash on the empty max.
+        empty = "actuator_forces"
+        episodes = [[{empty: np.empty(0)}] * 3]
+        res = evaluate_safety(episodes, [SafetyLimit(empty, 5.0)])
+        assert res.decision == SafetyDecision.PASS
+        assert res.worst_observed[empty] == 0.0
+
     def test_result_dict(self):
         res = evaluate_safety([[step([11.0], [0.0])]], LIMITS)
         d = res.to_dict()

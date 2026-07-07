@@ -138,7 +138,10 @@ def evaluate_safety(
             n_steps += 1
             violations.extend(check_step(info, limits, trial=trial, timestep=timestep))
             for limit in limits:
-                observed = float(np.max(np.abs(np.asarray(info[limit.quantity], dtype=float))))
+                values = np.abs(np.asarray(info[limit.quantity], dtype=float))
+                if values.size == 0:
+                    continue  # e.g. a mocap-controlled env has no actuator forces
+                observed = float(np.max(values))
                 if observed > worst[limit.quantity]:
                     worst[limit.quantity] = observed
 
