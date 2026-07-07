@@ -2,14 +2,15 @@
   "cotter_report_version": 1,
   "policy_name": "victim_ppo",
   "env_id": "InvertedPendulum-v5",
-  "created_at": "2026-07-07T07:49:39+00:00",
+  "created_at": "2026-07-07T12:54:58+00:00",
   "metadata": {
     "seed": 0,
     "epsilon": 0.07,
     "safety_limits": {
       "cotter/joint_velocities": 5.0,
       "cotter/actuator_forces": 2.5,
-      "cotter/contact_count": 0.5
+      "cotter/contact_count": 0.5,
+      "cotter/contact_forces": 1.0
     },
     "success_criterion": "episode length >= 1000 (full horizon survived)"
   },
@@ -53,6 +54,10 @@
           {
             "quantity": "cotter/contact_count",
             "max_abs": 0.5
+          },
+          {
+            "quantity": "cotter/contact_forces",
+            "max_abs": 1.0
           }
         ],
         "n_trials": 20,
@@ -62,7 +67,8 @@
         "worst_observed": {
           "cotter/joint_velocities": 0.6789333169630953,
           "cotter/actuator_forces": 0.9062168598175049,
-          "cotter/contact_count": 0.0
+          "cotter/contact_count": 0.0,
+          "cotter/contact_forces": 0.0
         }
       }
     },

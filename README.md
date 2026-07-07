@@ -109,7 +109,7 @@ full output in [RESULTS.md](RESULTS.md)):
 ```
 ==============================================================================
 COTTER TEST REPORT — policy 'victim_ppo' on InvertedPendulum-v5
-generated 2026-07-07T07:49:39+00:00
+generated 2026-07-07T12:54:58+00:00
 ==============================================================================
 [PASS] performance/sprt_success_rate
        PASS: 18/18 successes (100.0%) after 18 sequential trials (H0 p<=0.8, H1 p>=0.95)

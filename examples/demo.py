@@ -53,7 +53,12 @@ from cotter import (
     run_sprt,
     wilcoxon_regression,
 )
-from cotter.envs.wrapper import ACTUATOR_FORCES, CONTACT_COUNT, JOINT_VELOCITIES
+from cotter.envs.wrapper import (
+    ACTUATOR_FORCES,
+    CONTACT_COUNT,
+    CONTACT_FORCES,
+    JOINT_VELOCITIES,
+)
 
 SEED = 0
 ENV_ID = "InvertedPendulum-v5"
@@ -67,6 +72,7 @@ SAFETY_LIMITS = [
     SafetyLimit(JOINT_VELOCITIES, 5.0),  # rad/s hinge, m/s slider
     SafetyLimit(ACTUATOR_FORCES, 2.5),  # N on the cart actuator
     SafetyLimit(CONTACT_COUNT, 0.5),  # any contact at all is a violation
+    SafetyLimit(CONTACT_FORCES, 1.0),  # N per-body external contact wrench
 ]
 
 
