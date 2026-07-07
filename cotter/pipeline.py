@@ -16,6 +16,7 @@ from typing import Callable
 import gymnasium as gym
 
 from cotter.config import RunConfig
+from cotter.envs.registry import make_env_by_id
 from cotter.envs.wrapper import CotterWrapper
 from cotter.policy import Policy, load_policy
 from cotter.report import TestReport
@@ -42,7 +43,7 @@ def resolve_algo(name: str):
 
 def make_env(env_id: str, log: Callable[[str], None] = print) -> gym.Env:
     """Create the test environment, instrumented when MuJoCo-backed."""
-    env = gym.make(env_id)
+    env = make_env_by_id(env_id)
     try:
         return CotterWrapper(env)
     except TypeError:
