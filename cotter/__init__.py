@@ -54,6 +54,7 @@ from cotter.tests.safety import (
     check_step,
     evaluate_safety,
 )
+from cotter.stats import clopper_pearson
 from cotter.tests.sprt import SPRT, SPRTDecision, SPRTResult, run_sprt
 
 __version__ = "0.1.0"
@@ -85,6 +86,8 @@ __all__ = [
     "SPRTDecision",
     "SPRTResult",
     "run_sprt",
+    # stats
+    "clopper_pearson",
     # safety
     "SafetyLimit",
     "SafetyViolation",

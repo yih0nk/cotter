@@ -35,6 +35,11 @@ class TestAdapters:
         r = report.results[0]
         assert (r.category, r.passed) == ("performance", True)
         assert "PASS" in r.summary
+        assert "CI" in r.summary  # confidence interval surfaced
+
+    def test_regression_summary_shows_effect_size(self, report):
+        report.add_regression(make_no_regression())
+        assert "odds_ratio" in report.results[0].summary
 
     def test_sprt_inconclusive_maps_to_none(self, report):
         res = run_sprt(iter([True, False] * 5), p0=0.4, p1=0.6, n_max=10)

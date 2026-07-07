@@ -85,8 +85,9 @@ class TestReport:
             name,
             passed,
             f"{result.decision.value}: {result.n_successes}/{result.n_trials} successes "
-            f"({result.success_rate:.1%}) after {result.n_trials} sequential trials "
-            f"(H0 p<={result.p0}, H1 p>={result.p1})",
+            f"({result.success_rate:.1%}, {result.ci_level:.0%} CI "
+            f"[{result.ci_lower:.1%}, {result.ci_upper:.1%}]) after {result.n_trials} "
+            f"sequential trials (H0 p<={result.p0}, H1 p>={result.p1})",
             result.to_dict(),
         )
 
@@ -111,7 +112,8 @@ class TestReport:
             result.decision != RegressionDecision.REGRESSION,
             f"{result.decision.value}: baseline {result.baseline_metric:.3f} vs "
             f"candidate {result.candidate_metric:.3f} over {result.n_pairs} paired "
-            f"trials (p={result.p_value:.3g}, {result.test})",
+            f"trials (p={result.p_value:.3g}, {result.effect_size_name}="
+            f"{result.effect_size:.3g}, {result.test})",
             result.to_dict(),
         )
 
