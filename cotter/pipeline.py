@@ -16,11 +16,17 @@ from typing import Callable
 import gymnasium as gym
 
 from cotter.config import RunConfig
+from cotter.envs.factory import WrappedEnvFactory
 from cotter.envs.registry import make_env_by_id
 from cotter.envs.wrapper import CotterWrapper
 from cotter.policy import Policy, load_policy
 from cotter.report import TestReport
-from cotter.runner import make_seed_sequence, rollout_one, run_rollouts
+from cotter.runner import (
+    make_seed_sequence,
+    rollout_one,
+    run_rollouts,
+    run_rollouts_parallel,
+)
 from cotter.tests.adversarial import get_adversary, run_adversarial_test
 from cotter.tests.regression import mcnemar_exact, wilcoxon_regression
 from cotter.tests.safety import evaluate_safety
@@ -122,11 +128,26 @@ def run_from_config(
         report.add_sprt(result)
         log(f"[cotter]   => {result.decision.value} after {result.n_trials} trials")
 
+    factory = WrappedEnvFactory(cfg.env)
+
+    def dispatch(pol, n, *, seeds=None, base=0, record_infos, n_workers):
+        if n_workers > 1:
+            return run_rollouts_parallel(
+                pol, factory, n, success_fn, seeds=seeds, base_seed=base,
+                record_infos=record_infos, n_workers=n_workers,
+            )
+        return run_rollouts(
+            pol, env, n, success_fn, seeds=seeds, base_seed=base,
+            record_infos=record_infos,
+        )
+
     if cfg.safety is not None:
         s = cfg.safety
-        log(f"[cotter] safety: {len(s.limits)} limit(s) over {s.n_episodes} episodes")
-        rollouts = run_rollouts(
-            policy, env, s.n_episodes, success_fn, base_seed=cfg.base_seed + _SAFETY_SEED
+        log(f"[cotter] safety: {len(s.limits)} limit(s) over {s.n_episodes} episodes"
+            + (f" ({s.n_workers} workers)" if s.n_workers > 1 else ""))
+        rollouts = dispatch(
+            policy, s.n_episodes, base=cfg.base_seed + _SAFETY_SEED,
+            record_infos=True, n_workers=s.n_workers,
         )
         result = evaluate_safety(rollouts.episode_infos, s.limits)
         report.add_safety(result)
@@ -140,12 +161,8 @@ def run_from_config(
         log(f"[cotter] regression: vs baseline {r.baseline} on {r.n_pairs} paired seeds")
         baseline = load_policy(r.baseline, env, algo=algo, name=f"baseline:{r.baseline.stem}")
         seeds = make_seed_sequence(r.n_pairs, cfg.base_seed + _REGRESSION_SEED)
-        base_rs = run_rollouts(
-            baseline, env, r.n_pairs, success_fn, seeds=seeds, record_infos=False
-        )
-        cand_rs = run_rollouts(
-            policy, env, r.n_pairs, success_fn, seeds=seeds, record_infos=False
-        )
+        base_rs = dispatch(baseline, r.n_pairs, seeds=seeds, record_infos=False, n_workers=r.n_workers)
+        cand_rs = dispatch(policy, r.n_pairs, seeds=seeds, record_infos=False, n_workers=r.n_workers)
         # baseline vs candidate: the CLI policy is the candidate
         mcnemar = mcnemar_exact(base_rs.successes, cand_rs.successes, alpha=r.alpha)
         report.add_regression(mcnemar, name="success_mcnemar")
@@ -163,6 +180,7 @@ def run_from_config(
             policy, env, success_fn, epsilon=a.epsilon, n_episodes=a.n_episodes,
             min_success_rate=a.min_success_rate, base_seed=cfg.base_seed + _ADV_SEED,
             notes="uniform random baseline",
+            n_workers=a.n_workers, env_factory=factory,
         )
         report.add_adversarial(random_result, name="random_baseline")
         log(f"[cotter]   random baseline: {random_result.clean_success_rate:.0%} clean -> "
@@ -174,6 +192,7 @@ def run_from_config(
                 adversary=adversary, min_success_rate=a.min_success_rate,
                 base_seed=cfg.base_seed + _ADV_SEED,
                 notes=notes or "trained PPO adversary",
+                n_workers=a.n_workers, env_factory=factory,
             )
             report.add_adversarial(learned_result, name=f"learned_{adversary.name}")
             log(f"[cotter]   {adversary.name} adversary: "

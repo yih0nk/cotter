@@ -62,6 +62,7 @@ class PerformanceConfig:
 class SafetyConfig:
     limits: list[SafetyLimit] = field(default_factory=list)
     n_episodes: int = 20
+    n_workers: int = 1  # parallel rollout workers; 1 = serial
 
 
 @dataclass
@@ -69,6 +70,7 @@ class RegressionConfig:
     baseline: Path = Path()
     n_pairs: int = 30
     alpha: float = 0.05
+    n_workers: int = 1  # parallel rollout workers; 1 = serial
 
 
 @dataclass
@@ -80,6 +82,7 @@ class AdversarialConfig:
     timesteps: int = 150_000
     use_zoo: bool = False  # reuse/cache the trained adversary in the zoo
     zoo_root: str | None = None  # override the default ~/.cotter/zoo
+    n_workers: int = 1  # parallel rollout workers for the fixed-N eval; 1 = serial
 
 
 @dataclass

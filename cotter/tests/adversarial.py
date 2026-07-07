@@ -26,7 +26,12 @@ import gymnasium as gym
 import numpy as np
 
 from cotter.policy import Policy
-from cotter.runner import SuccessFn, make_seed_sequence, run_rollouts
+from cotter.runner import (
+    SuccessFn,
+    make_seed_sequence,
+    run_rollouts,
+    run_rollouts_parallel,
+)
 
 
 class Adversary(Protocol):
@@ -185,12 +190,17 @@ def run_adversarial_test(
     base_seed: int = 0,
     seeds: Sequence[int] | None = None,
     notes: str = "",
+    n_workers: int = 1,
+    env_factory: Callable[[], gym.Env] | None = None,
 ) -> AdversarialResult:
     """Measure worst-case success rate under bounded observation attack.
 
     Clean and perturbed rollouts share the same seed sequence, so the
     reported drop is a matched comparison. PASS requires the perturbed
-    success rate to stay at or above ``min_success_rate``.
+    success rate to stay at or above ``min_success_rate``. Pass
+    ``n_workers > 1`` with an ``env_factory`` to evaluate the fixed-N
+    rollouts in parallel (the adversary and victim stay in the main
+    process, so results are identical to the serial path).
     """
     if not isinstance(env.observation_space, gym.spaces.Box):
         raise TypeError(
@@ -204,11 +214,18 @@ def run_adversarial_test(
     if seeds is None:
         seeds = make_seed_sequence(n_episodes, base_seed)
 
-    clean = run_rollouts(victim, env, n_episodes, success_fn, seeds=seeds, record_infos=False)
-    attacked = run_rollouts(
-        _PerturbedPolicy(victim, adversary), env, n_episodes, success_fn,
-        seeds=seeds, record_infos=False,
-    )
+    def rollouts(pol):
+        if n_workers > 1:
+            if env_factory is None:
+                raise ValueError("n_workers > 1 requires an env_factory")
+            return run_rollouts_parallel(
+                pol, env_factory, n_episodes, success_fn,
+                seeds=seeds, record_infos=False, n_workers=n_workers,
+            )
+        return run_rollouts(pol, env, n_episodes, success_fn, seeds=seeds, record_infos=False)
+
+    clean = rollouts(victim)
+    attacked = rollouts(_PerturbedPolicy(victim, adversary))
 
     return AdversarialResult(
         adversary_type=adversary.name,

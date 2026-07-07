@@ -74,6 +74,31 @@ class TestRunFromConfig:
         assert not any(name.startswith("learned_") for _, name in categories)
         assert (tmp_path / "report.json").exists()
 
+    def test_parallel_workers_match_serial_report(self):
+        # Safety + regression with n_workers > 1 must produce the same
+        # numbers as the serial (default) config on shared base_seed.
+        spec = {
+            "env": "InvertedPendulum-v5",
+            "success": {"type": "min_length", "value": 50},
+            "base_seed": 0,
+            "safety": {"n_episodes": 4, "limits": {"cotter/joint_velocities": 5.0}},
+            "regression": {"baseline": str(VICTIM), "n_pairs": 4},
+        }
+        serial = run_from_config(VICTIM, parse_config(dict(spec)), log=lambda m: None)
+        par_spec = dict(spec)
+        par_spec["safety"] = dict(spec["safety"], n_workers=2)
+        par_spec["regression"] = dict(spec["regression"], n_workers=2)
+        parallel = run_from_config(VICTIM, parse_config(par_spec), log=lambda m: None)
+
+        def by_name(report):
+            return {r.name: r for r in report.results}
+
+        s, p = by_name(serial), by_name(parallel)
+        assert p["hard_limits"].data["worst_observed"] == s["hard_limits"].data["worst_observed"]
+        assert p["hard_limits"].data["n_timesteps_checked"] == s["hard_limits"].data["n_timesteps_checked"]
+        assert p["success_mcnemar"].data["p_value"] == s["success_mcnemar"].data["p_value"]
+        assert p["return_wilcoxon"].data["p_value"] == s["return_wilcoxon"].data["p_value"]
+
     def test_only_declared_categories_run(self):
         cfg = parse_config(
             {
