@@ -42,8 +42,9 @@ from cotter import (
     rollout_one, make_seed_sequence, JOINT_VELOCITIES, ACTUATOR_FORCES,
 )
 
-# 1. Wrap any Gymnasium MuJoCo env; the wrapper exposes qvel /
-#    actuator_force / contact count in every step's info dict.
+# 1. Wrap any Gymnasium MuJoCo env; the wrapper exposes qvel,
+#    actuator_force, contact count, and per-body contact-force
+#    magnitudes in every step's info dict.
 env = CotterWrapper(gym.make("InvertedPendulum-v5"))
 
 # 2. Load the policy under test (SB3 .zip or a raw torch .pt module).
@@ -141,7 +142,7 @@ certified this policy.
 cotter/
 ├── policy.py            # black-box loading (SB3 .zip / torch .pt) + space validation
 ├── runner.py            # seeded rollouts -> structured EpisodeRecords
-├── envs/wrapper.py      # instruments info dict with qvel / actuator_force / ncon
+├── envs/wrapper.py      # instruments info dict with qvel / actuator_force / contacts
 ├── report.py            # TestReport: console summary + JSON (results container only)
 └── tests/
     ├── sprt.py          # Wald's sequential probability ratio test
