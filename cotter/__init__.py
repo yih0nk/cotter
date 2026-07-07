@@ -29,6 +29,7 @@ from cotter.runner import (
     make_seed_sequence,
     rollout_one,
     run_rollouts,
+    run_rollouts_parallel,
 )
 from cotter.tests.adversarial import (
     AdversarialResult,
@@ -77,6 +78,7 @@ __all__ = [
     "RolloutSet",
     "rollout_one",
     "run_rollouts",
+    "run_rollouts_parallel",
     "make_seed_sequence",
     # performance
     "SPRT",
