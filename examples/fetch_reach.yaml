@@ -1,0 +1,39 @@
+# Dict-observation manipulation demo: PPO on FetchReachDense-v4.
+#
+#   poetry run cotter run \
+#       --policy artifacts/victim_ppo_fetch_reach.zip \
+#       --config examples/fetch_reach.yaml
+#
+# FetchReach has a Dict observation space (observation/achieved_goal/
+# desired_goal) and reports is_success in the step info dict, so success
+# is an info_flag rather than a length/return threshold. No adversarial
+# section: observation-perturbation attacks are Box-only for now.
+
+env: FetchReachDense-v4
+algo: PPO
+base_seed: 0
+
+success:
+  type: info_flag
+  key: is_success
+
+performance:
+  p0: 0.80
+  p1: 0.95
+  alpha: 0.05
+  beta: 0.05
+  n_max: 50
+
+safety:
+  n_episodes: 20
+  limits:
+    cotter/joint_velocities: 10.0   # rad/s; Fetch arm joints (mocap control
+                                    # means actuator_forces is empty here)
+    cotter/contact_forces: 200.0    # N; per-body external contact wrench
+
+regression:
+  baseline: ../artifacts/victim_ppo_fetch_reach.zip   # self-comparison
+  n_pairs: 30
+  alpha: 0.05
+
+report: ../artifacts/fetch_report.json

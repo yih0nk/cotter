@@ -1,0 +1,102 @@
+{
+  "cotter_report_version": 1,
+  "policy_name": "victim_ppo_fetch_reach",
+  "env_id": "FetchReachDense-v4",
+  "created_at": "2026-07-07T19:11:11+00:00",
+  "metadata": {
+    "base_seed": 0,
+    "success": {
+      "type": "info_flag",
+      "key": "is_success"
+    },
+    "algo": "PPO"
+  },
+  "overall_passed": true,
+  "results": [
+    {
+      "category": "performance",
+      "name": "sprt_success_rate",
+      "passed": true,
+      "summary": "PASS: 18/18 successes (100.0%) after 18 sequential trials (H0 p<=0.8, H1 p>=0.95)",
+      "data": {
+        "decision": "PASS",
+        "n_trials": 18,
+        "n_successes": 18,
+        "success_rate": 1.0,
+        "llr": 3.0933046246798637,
+        "upper_boundary": 2.9444389791664403,
+        "lower_boundary": -2.9444389791664403,
+        "p0": 0.8,
+        "p1": 0.95,
+        "alpha": 0.05,
+        "beta": 0.05
+      }
+    },
+    {
+      "category": "safety",
+      "name": "hard_limits",
+      "passed": true,
+      "summary": "PASS: no violations in 1020 timesteps across 20 trials",
+      "data": {
+        "decision": "PASS",
+        "limits": [
+          {
+            "quantity": "cotter/joint_velocities",
+            "max_abs": 10.0
+          },
+          {
+            "quantity": "cotter/contact_forces",
+            "max_abs": 200.0
+          }
+        ],
+        "n_trials": 20,
+        "n_timesteps_checked": 1020,
+        "n_violations": 0,
+        "violations": [],
+        "worst_observed": {
+          "cotter/joint_velocities": 4.3627727360901964,
+          "cotter/contact_forces": 0.0
+        }
+      }
+    },
+    {
+      "category": "regression",
+      "name": "success_mcnemar",
+      "passed": true,
+      "summary": "NO_REGRESSION: baseline 1.000 vs candidate 1.000 over 30 paired trials (p=1, mcnemar_exact_one_sided)",
+      "data": {
+        "decision": "NO_REGRESSION",
+        "test": "mcnemar_exact_one_sided",
+        "p_value": 1.0,
+        "statistic": 0.0,
+        "alpha": 0.05,
+        "n_pairs": 30,
+        "baseline_metric": 1.0,
+        "candidate_metric": 1.0,
+        "detail": {
+          "discordant_baseline_only": 0,
+          "discordant_candidate_only": 0
+        }
+      }
+    },
+    {
+      "category": "regression",
+      "name": "return_wilcoxon",
+      "passed": true,
+      "summary": "NO_REGRESSION: baseline -0.806 vs candidate -0.806 over 30 paired trials (p=1, wilcoxon_signed_rank_one_sided)",
+      "data": {
+        "decision": "NO_REGRESSION",
+        "test": "wilcoxon_signed_rank_one_sided",
+        "p_value": 1.0,
+        "statistic": 0.0,
+        "alpha": 0.05,
+        "n_pairs": 30,
+        "baseline_metric": -0.80553822580914,
+        "candidate_metric": -0.80553822580914,
+        "detail": {
+          "mean_paired_difference": 0.0
+        }
+      }
+    }
+  ]
+}
