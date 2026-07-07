@@ -100,6 +100,25 @@ class TestRunFromConfig:
         assert mcnemar.passed is True
         assert mcnemar.data["p_value"] == 1.0
 
+    def test_zoo_trains_then_reuses_adversary(self, tmp_path):
+        # First run trains and caches; second run must reuse (no retrain).
+        base = {
+            "env": "InvertedPendulum-v5",
+            "success": {"type": "min_length", "value": 50},
+            "adversarial": {
+                "epsilon": 0.07, "n_episodes": 2, "train": True,
+                "timesteps": 512, "use_zoo": True, "zoo_root": str(tmp_path / "zoo"),
+            },
+        }
+        logs1: list[str] = []
+        run_from_config(VICTIM, parse_config(dict(base)), log=logs1.append)
+        assert any("training and storing in zoo" in m for m in logs1)
+
+        logs2: list[str] = []
+        run_from_config(VICTIM, parse_config(dict(base)), log=logs2.append)
+        assert any("reusing cached adversary" in m for m in logs2)
+        assert not any("training and storing" in m for m in logs2)
+
     def test_safety_on_non_mujoco_env_rejected(self):
         cfg = parse_config(
             {

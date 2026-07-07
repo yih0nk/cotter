@@ -78,6 +78,8 @@ class AdversarialConfig:
     min_success_rate: float = 0.5
     train: bool = True
     timesteps: int = 150_000
+    use_zoo: bool = False  # reuse/cache the trained adversary in the zoo
+    zoo_root: str | None = None  # override the default ~/.cotter/zoo
 
 
 @dataclass

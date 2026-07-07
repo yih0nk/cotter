@@ -51,6 +51,39 @@ def make_env(env_id: str, log: Callable[[str], None] = print) -> gym.Env:
         return env
 
 
+def _obtain_adversary(policy_path, policy, env, cfg, adv_cfg, log):
+    """Load a cached adversary from the zoo, or train one and cache it.
+
+    Falls back to :func:`get_adversary` (train-with-random-fallback) when
+    the zoo is disabled or the victim cannot be hashed.
+    """
+    if not adv_cfg.use_zoo:
+        return get_adversary(
+            policy, env, adv_cfg.epsilon, timesteps=adv_cfg.timesteps,
+            seed=cfg.base_seed, log=log,
+        )
+
+    from cotter.tests.adversarial import train_adversary
+    from cotter.zoo import AdversaryZoo
+
+    zoo = AdversaryZoo(adv_cfg.zoo_root) if adv_cfg.zoo_root else AdversaryZoo()
+    # the artifact path hashes identically however it is later referenced
+    victim_ref = Path(policy_path)
+
+    cached = zoo.load(cfg.env, victim_ref, adv_cfg.epsilon)
+    if cached is not None:
+        log(f"[cotter]   reusing cached adversary from zoo ({zoo.root})")
+        return cached, "reused cached zoo adversary"
+
+    log(f"[cotter]   no cached adversary; training and storing in zoo ({zoo.root})")
+    adversary = train_adversary(
+        policy, env, adv_cfg.epsilon, timesteps=adv_cfg.timesteps, seed=cfg.base_seed
+    )
+    entry = zoo.save(adversary, cfg.env, victim_ref, notes=f"trained via cotter run, {cfg.env}")
+    log(f"[cotter]   stored adversary at {entry.path}")
+    return adversary, "trained PPO adversary (cached in zoo)"
+
+
 def run_from_config(
     policy_path: str | Path,
     cfg: RunConfig,
@@ -135,10 +168,7 @@ def run_from_config(
         log(f"[cotter]   random baseline: {random_result.clean_success_rate:.0%} clean -> "
             f"{random_result.adversarial_success_rate:.0%} perturbed")
         if a.train:
-            adversary, notes = get_adversary(
-                policy, env, a.epsilon, timesteps=a.timesteps,
-                seed=cfg.base_seed, log=log,
-            )
+            adversary, notes = _obtain_adversary(policy_path, policy, env, cfg, a, log)
             learned_result = run_adversarial_test(
                 policy, env, success_fn, epsilon=a.epsilon, n_episodes=a.n_episodes,
                 adversary=adversary, min_success_rate=a.min_success_rate,
