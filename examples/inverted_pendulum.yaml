@@ -1,0 +1,45 @@
+# Full four-category test battery for the checked-in demo victim.
+#
+#   poetry run cotter run \
+#       --policy artifacts/victim_ppo_inverted_pendulum.zip \
+#       --config examples/inverted_pendulum.yaml
+#
+# Paths are relative to this file's directory.
+
+env: InvertedPendulum-v5
+algo: PPO
+base_seed: 0
+
+# an episode succeeds when the pole survives the full 1000-step horizon
+success:
+  type: min_length
+  value: 1000
+
+performance:
+  p0: 0.80      # H0: success rate <= 80%
+  p1: 0.95      # H1: success rate >= 95%
+  alpha: 0.05
+  beta: 0.05
+  n_max: 50
+
+safety:
+  n_episodes: 20
+  limits:
+    cotter/joint_velocities: 5.0    # rad/s hinge, m/s slider
+    cotter/actuator_forces: 2.5     # N on the cart actuator
+    cotter/contact_count: 0.5       # any contact at all is a violation
+    cotter/contact_forces: 1.0      # N per-body external contact wrench
+
+regression:
+  baseline: ../artifacts/victim_ppo_inverted_pendulum.zip   # self-comparison: expect NO_REGRESSION
+  n_pairs: 30
+  alpha: 0.05
+
+adversarial:
+  epsilon: 0.07
+  n_episodes: 20
+  min_success_rate: 0.5
+  train: true          # set false to use only the random baseline (fast)
+  timesteps: 150000
+
+report: ../artifacts/cli_report.json
