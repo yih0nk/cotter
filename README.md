@@ -31,7 +31,48 @@ poetry install
 poetry run pytest   # 75 tests, unit + real-MuJoCo integration
 ```
 
-## Quickstart
+## Quickstart (CLI)
+
+Declare the test battery in YAML and point `cotter run` at a policy:
+
+```sh
+poetry run cotter run \
+    --policy artifacts/victim_ppo_inverted_pendulum.zip \
+    --config examples/inverted_pendulum.yaml
+```
+
+Exit code 0 means every declared category passed; 1 means at least one
+failed; 2 means a config/usage error. Real captured output from the
+command above (2026-07-07, seed 0 — trial-by-trial progress lines
+elided):
+
+```
+[cotter] loaded policy 'victim_ppo_inverted_pendulum' onto InvertedPendulum-v5
+[cotter] performance: SPRT p0=0.8 p1=0.95 n_max=50
+[cotter]   => PASS after 18 trials
+[cotter] safety: 4 limit(s) over 20 episodes
+[cotter]   worst |cotter/joint_velocities| = 0.6789 (limit 5.0)
+[cotter]   worst |cotter/actuator_forces| = 0.9062 (limit 2.5)
+[cotter]   worst |cotter/contact_count| = 0.0000 (limit 0.5)
+[cotter]   worst |cotter/contact_forces| = 0.0000 (limit 1.0)
+[cotter]   => PASS
+[cotter] regression: vs baseline .../victim_ppo_inverted_pendulum.zip on 30 paired seeds
+[cotter]   => McNemar NO_REGRESSION (p=1), Wilcoxon NO_REGRESSION (p=1)
+[cotter] adversarial: eps=0.07 over 20 episodes
+[cotter]   random baseline: 100% clean -> 100% perturbed
+[cotter]   ppo adversary: 100% clean -> 0% perturbed
+[cotter] JSON report written to .../artifacts/cli_report.json
+...
+OVERALL: FAIL (1 failing, 5 passing, 0 informational)
+```
+
+(The FAIL is the learned-adversary category doing its job; the config's
+regression section compares the victim against itself as a sanity check,
+hence p = 1.) The config file schema is documented in
+[`examples/inverted_pendulum.yaml`](examples/inverted_pendulum.yaml) and
+`cotter/config.py`.
+
+## Quickstart (Python API)
 
 ```python
 import gymnasium as gym
