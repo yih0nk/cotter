@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "cotter"
+version = "0.1.0"
+description = "Compliance-testing framework for AI-controlled robot policies — pytest for robot policies."
+authors = ["yihan <hyihan2007hong@gmail.com>"]
+readme = "README.md"
+license = "MIT"
+packages = [{ include = "cotter" }]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.12"
+gymnasium = { version = "^1.0", extras = ["mujoco"] }
+mujoco = "^3.2"
+stable-baselines3 = "^2.4"
+torch = "^2.4"
+numpy = "^1.26"
+scipy = "^1.13"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3"
+
+[build-system]
+requires = ["poetry-core>=1.9"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
