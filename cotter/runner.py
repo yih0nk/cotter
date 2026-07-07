@@ -18,6 +18,8 @@ import numpy as np
 
 from cotter.policy import Policy
 
+DEFAULT_N_WORKERS = 4
+
 
 @dataclass
 class EpisodeRecord:
@@ -136,3 +138,123 @@ def run_rollouts(
         for i in range(n_episodes)
     ]
     return RolloutSet(records=records)
+
+
+def _extract_env_info(batched: dict, i: int) -> dict:
+    """Reconstruct env ``i``'s per-step info dict from a vector env's batched
+    info (dict of stacked arrays with ``_key`` presence masks)."""
+    out: dict = {}
+    for key, values in batched.items():
+        if key.startswith("_"):
+            continue
+        mask = batched.get("_" + key)
+        if mask is not None and not bool(mask[i]):
+            continue
+        value = values[i]
+        out[key] = np.array(value, copy=True) if isinstance(value, np.ndarray) else value
+    return out
+
+
+def run_rollouts_parallel(
+    policy: Policy,
+    env_factory: Callable[[], gym.Env],
+    n_episodes: int,
+    success_fn: SuccessFn,
+    seeds: Sequence[int] | None = None,
+    base_seed: int = 0,
+    max_steps: int | None = None,
+    record_infos: bool = True,
+    n_workers: int = DEFAULT_N_WORKERS,
+) -> RolloutSet:
+    """Run seeded rollouts across worker processes via ``AsyncVectorEnv``.
+
+    Produces results bit-identical to :func:`run_rollouts` on the same
+    seeds: each episode runs in an isolated env seeded with its own seed,
+    the policy is evaluated deterministically per observation in the main
+    process, and seeds are consumed in disjoint chunks of ``n_workers``.
+    Only the environment stepping is parallelized. Falls back to the
+    serial runner when ``n_workers <= 1``.
+    """
+    if seeds is None:
+        seeds = make_seed_sequence(n_episodes, base_seed)
+    elif len(seeds) < n_episodes:
+        raise ValueError(f"need {n_episodes} seeds, got {len(seeds)}")
+    if n_workers < 1:
+        raise ValueError(f"n_workers must be >= 1; got {n_workers}")
+    seeds = [int(s) for s in seeds[:n_episodes]]
+
+    if n_workers == 1:
+        return run_rollouts(
+            policy, env_factory(), n_episodes, success_fn,
+            seeds=seeds, max_steps=max_steps, record_infos=record_infos,
+        )
+
+    records: list[EpisodeRecord | None] = [None] * n_episodes
+    for start in range(0, n_episodes, n_workers):
+        chunk = seeds[start : start + n_workers]
+        for offset, record in enumerate(_run_chunk(
+            policy, env_factory, chunk, success_fn, max_steps, record_infos
+        )):
+            records[start + offset] = record
+    return RolloutSet(records=[r for r in records if r is not None])
+
+
+def _run_chunk(
+    policy: Policy,
+    env_factory: Callable[[], gym.Env],
+    chunk_seeds: list[int],
+    success_fn: SuccessFn,
+    max_steps: int | None,
+    record_infos: bool,
+) -> list[EpisodeRecord]:
+    """Run one chunk of episodes (one per worker) in lockstep, stopping to
+    record each env at its own termination while others keep stepping."""
+    k = len(chunk_seeds)
+    venv = gym.vector.AsyncVectorEnv([env_factory] * k)
+    try:
+        obs, info = venv.reset(seed=list(chunk_seeds))
+        rewards = [0.0] * k
+        lengths = [0] * k
+        terminated = [False] * k
+        truncated = [False] * k
+        done = [False] * k
+        step_infos: list[list[dict]] = [
+            [_extract_env_info(info, i)] if record_infos else [] for i in range(k)
+        ]
+        final_info = [_extract_env_info(info, i) for i in range(k)]
+
+        while not all(done):
+            actions = np.stack([np.asarray(policy.predict(obs[i])) for i in range(k)])
+            obs, reward, term, trunc, info = venv.step(actions)
+            for i in range(k):
+                if done[i]:
+                    continue
+                rewards[i] += float(reward[i])
+                lengths[i] += 1
+                env_info = _extract_env_info(info, i)
+                final_info[i] = env_info
+                if record_infos:
+                    step_infos[i].append(env_info)
+                hit_cap = max_steps is not None and lengths[i] >= max_steps
+                if bool(term[i]) or bool(trunc[i]) or hit_cap:
+                    done[i] = True
+                    terminated[i] = bool(term[i])
+                    truncated[i] = bool(trunc[i]) or hit_cap
+    finally:
+        venv.close()
+
+    records = []
+    for i in range(k):
+        success = bool(success_fn(
+            rewards[i], lengths[i], terminated[i], truncated[i], final_info[i]
+        ))
+        records.append(EpisodeRecord(
+            seed=chunk_seeds[i],
+            length=lengths[i],
+            total_reward=rewards[i],
+            terminated=terminated[i],
+            truncated=truncated[i],
+            success=success,
+            step_infos=step_infos[i],
+        ))
+    return records
