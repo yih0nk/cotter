@@ -28,7 +28,7 @@ Requires Python 3.11 and [Poetry](https://python-poetry.org/).
 git clone https://github.com/yih0nk/cotter.git
 cd cotter
 poetry install
-poetry run pytest   # 75 tests, unit + real-MuJoCo integration
+poetry run pytest   # 152 tests, unit + real-MuJoCo integration
 ```
 
 ## Quickstart (CLI)
@@ -177,14 +177,72 @@ completely harmless (100% success), a learned adversary drives the same
 policy to 0%.** Random-noise robustness testing alone would have
 certified this policy.
 
+## Manipulation robotics (Dict observations)
+
+Cotter handles the `Dict` observation spaces used by
+[gymnasium-robotics](https://robotics.farama.org/) Fetch/manipulation
+envs, where success is a goal flag rather than a reward threshold. A
+real captured run on a PPO policy trained for FetchReach
+([`examples/fetch_reach.yaml`](examples/fetch_reach.yaml)):
+
+```
+COTTER TEST REPORT — policy 'victim_ppo_fetch_reach' on FetchReachDense-v4
+[PASS] performance/sprt_success_rate
+       PASS: 18/18 successes (100.0%) after 18 sequential trials (H0 p<=0.8, H1 p>=0.95)
+[PASS] safety/hard_limits
+       PASS: no violations in 1020 timesteps across 20 trials
+[PASS] regression/success_mcnemar
+       NO_REGRESSION: baseline 1.000 vs candidate 1.000 over 30 paired trials (p=1, ...)
+OVERALL: PASS (0 failing, 4 passing, 0 informational)
+```
+
+Success here is `{type: info_flag, key: is_success}`; the safety limits
+target Fetch's joint velocities and per-body contact forces (its
+end-effector is mocap-controlled, so `actuator_forces` is empty and any
+limit on it passes trivially). Observation-perturbation *adversarial*
+testing is Box-only for now and is rejected with a clear message on
+Dict-obs envs.
+
+## Adversary zoo
+
+Trained adversaries are expensive and specific to what they attack, so
+`cotter.zoo.AdversaryZoo` caches them keyed by
+`(env_id, victim_hash, epsilon)`. Set `use_zoo: true` in a config's
+adversarial section and the first run trains and stores the attacker;
+later runs on the same victim reuse it instead of retraining. The victim
+hash is taken over the policy artifact (or its parameter tensors), so a
+retrained victim never silently reuses a stale adversary. A hosted zoo
+of pretrained expert adversaries is the planned paid tier.
+
+## Compliance layer (paid tier)
+
+The open-source engine produces the *evidence* — structured pass/fail
+results with statistical guarantees. Rendering that into regulator-ready
+documentation (EU Machinery Regulation 2027 technical files, ISO 10218
+conformity records) is the licensed commercial layer, stubbed here with
+a stable import path:
+
+```python
+from cotter.compliance import EUMachineryReg2027
+EUMachineryReg2027(report)   # raises LicenseRequiredError in the OSS build
+```
+
 ## Architecture
 
 ```
 cotter/
+├── cli.py               # `cotter run` entrypoint
+├── config.py            # YAML config schema + loader
+├── pipeline.py          # executes the declared categories, aggregates a report
+├── success.py           # declarative success criteria (min_length/return/info_flag)
 ├── policy.py            # black-box loading (SB3 .zip / torch .pt) + space validation
 ├── runner.py            # seeded rollouts -> structured EpisodeRecords
-├── envs/wrapper.py      # instruments info dict with qvel / actuator_force / contacts
+├── envs/
+│   ├── wrapper.py       # instruments info dict with qvel / actuator_force / contacts
+│   └── registry.py      # resolves gymnasium-robotics (and other) extension envs
 ├── report.py            # TestReport: console summary + JSON (results container only)
+├── zoo/                 # adversary registry keyed by (env, victim, epsilon)
+├── compliance/          # paid-tier regulatory document stub (license required)
 └── tests/
     ├── sprt.py          # Wald's sequential probability ratio test
     ├── safety.py        # per-timestep hard limits, zero tolerance
@@ -204,6 +262,8 @@ Design notes:
   errors, `get_adversary` falls back to the random baseline and says so
   in the result — the category always produces a number.
 - **`report.py` is a results container**, not a compliance-document
-  generator; regulatory paperwork is out of scope here.
-
-See [BUILD_LOG.md](BUILD_LOG.md) for the full build trail and next steps.
+  generator; that is the paid `cotter.compliance` layer.
+- **Config-driven, seed-reproducible runs.** `cotter run --config
+  run.yaml` executes whichever categories the YAML declares; every
+  category derives its seeds from one `base_seed`, so enabling or
+  disabling a category never perturbs another's rollouts.
