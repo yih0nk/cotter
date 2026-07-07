@@ -114,6 +114,20 @@ class TestRunAdversarialTest:
         assert "clean_success_rate" in d
         assert "PASS" in res.summary()
 
+    def test_dict_obs_env_rejected_with_clear_error(self):
+        from stable_baselines3 import PPO
+
+        from cotter.envs.registry import make_env_by_id
+
+        fetch = make_env_by_id("FetchReachDense-v4")
+        policy = load_policy(
+            PPO("MultiInputPolicy", fetch, n_steps=32, verbose=0, device="cpu"),
+            fetch,
+        )
+        with pytest.raises(TypeError, match="Box observation spaces only"):
+            run_adversarial_test(policy, fetch, lambda *a: True, epsilon=0.05)
+        fetch.close()
+
     def test_fail_when_below_threshold(self, env, victim):
         res = run_adversarial_test(
             victim, env, lambda *a: False, epsilon=0.05,

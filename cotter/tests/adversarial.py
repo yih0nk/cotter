@@ -179,6 +179,13 @@ def run_adversarial_test(
     reported drop is a matched comparison. PASS requires the perturbed
     success rate to stay at or above ``min_success_rate``.
     """
+    if not isinstance(env.observation_space, gym.spaces.Box):
+        raise TypeError(
+            f"adversarial testing currently supports Box observation spaces "
+            f"only; {getattr(env, 'spec', None) and env.spec.id or 'env'} has "
+            f"{type(env.observation_space).__name__}. Dict-obs perturbation "
+            "is not implemented yet — drop the adversarial section for this env."
+        )
     if adversary is None:
         adversary = RandomAdversary(epsilon, seed=base_seed)
     if seeds is None:
