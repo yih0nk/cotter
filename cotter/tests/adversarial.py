@@ -59,6 +59,19 @@ class NullAdversary:
         return np.zeros_like(np.asarray(obs, dtype=float))
 
 
+class PPOAdversary:
+    """A trained SB3 model driving the perturbation, scaled into the budget."""
+
+    def __init__(self, model, epsilon: float) -> None:
+        self.name = "ppo"
+        self.epsilon = epsilon
+        self.model = model
+
+    def perturb(self, obs: np.ndarray) -> np.ndarray:
+        action, _ = self.model.predict(obs, deterministic=True)
+        return np.clip(np.asarray(action, dtype=float), -1.0, 1.0) * self.epsilon
+
+
 class ObservationPerturbationEnv(gym.Env):
     """The attack problem phrased as an RL environment for the adversary.
 
@@ -239,18 +252,7 @@ def train_adversary(
         device="cpu",
     )
     model.learn(total_timesteps=timesteps)
-
-    class PPOAdversary:
-        def __init__(self) -> None:
-            self.name = "ppo"
-            self.epsilon = epsilon
-            self.model = model
-
-        def perturb(self, obs: np.ndarray) -> np.ndarray:
-            action, _ = self.model.predict(obs, deterministic=True)
-            return np.clip(np.asarray(action, dtype=float), -1.0, 1.0) * epsilon
-
-    return PPOAdversary()
+    return PPOAdversary(model, epsilon)
 
 
 def get_adversary(
