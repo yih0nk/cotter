@@ -12,6 +12,7 @@ import torch
 from cotter.envs.wrapper import (
     ACTUATOR_FORCES,
     CONTACT_COUNT,
+    CONTACT_FORCES,
     INSTRUMENTED_KEYS,
     JOINT_VELOCITIES,
     CotterWrapper,
@@ -55,6 +56,9 @@ class TestCotterWrapper:
         assert info[JOINT_VELOCITIES].shape == (2,)  # cart slide + pole hinge
         assert info[ACTUATOR_FORCES].shape == (1,)  # single cart actuator
         assert isinstance(info[CONTACT_COUNT], int)
+        # world + cart + pole bodies, one wrench magnitude each, all >= 0
+        assert info[CONTACT_FORCES].shape == (3,)
+        assert np.all(info[CONTACT_FORCES] >= 0.0)
 
     def test_values_are_copies_not_views(self, env):
         env.reset(seed=0)

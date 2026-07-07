@@ -13,6 +13,9 @@ info key                        contents
                                  torque produced by each actuator (N or Nm)
 ``cotter/contact_count``         ``data.ncon`` — number of active contact
                                  points this step
+``cotter/contact_forces``        ``data.cfrc_ext`` L2 norms — magnitude of
+                                 the external contact wrench on each body
+                                 (one value per body; N-scale)
 ==============================  =========================================
 
 The wrapper works with any Gymnasium MuJoCo environment (anything whose
@@ -28,8 +31,9 @@ import numpy as np
 JOINT_VELOCITIES = "cotter/joint_velocities"
 ACTUATOR_FORCES = "cotter/actuator_forces"
 CONTACT_COUNT = "cotter/contact_count"
+CONTACT_FORCES = "cotter/contact_forces"
 
-INSTRUMENTED_KEYS = (JOINT_VELOCITIES, ACTUATOR_FORCES, CONTACT_COUNT)
+INSTRUMENTED_KEYS = (JOINT_VELOCITIES, ACTUATOR_FORCES, CONTACT_COUNT, CONTACT_FORCES)
 
 
 class CotterWrapper(gym.Wrapper):
@@ -39,7 +43,8 @@ class CotterWrapper(gym.Wrapper):
         super().__init__(env)
         data = getattr(env.unwrapped, "data", None)
         if data is None or not all(
-            hasattr(data, attr) for attr in ("qvel", "actuator_force", "ncon")
+            hasattr(data, attr)
+            for attr in ("qvel", "actuator_force", "ncon", "cfrc_ext")
         ):
             raise TypeError(
                 f"CotterWrapper requires a MuJoCo-backed environment exposing "
@@ -53,6 +58,10 @@ class CotterWrapper(gym.Wrapper):
         info[JOINT_VELOCITIES] = np.array(data.qvel, dtype=float, copy=True)
         info[ACTUATOR_FORCES] = np.array(data.actuator_force, dtype=float, copy=True)
         info[CONTACT_COUNT] = int(data.ncon)
+        # one L2 wrench magnitude per body; body 0 is the world and always 0
+        info[CONTACT_FORCES] = np.linalg.norm(
+            np.asarray(data.cfrc_ext, dtype=float), axis=1
+        )
         return info
 
     def reset(self, **kwargs):

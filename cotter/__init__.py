@@ -9,6 +9,7 @@ guarantees.
 from cotter.envs.wrapper import (
     ACTUATOR_FORCES,
     CONTACT_COUNT,
+    CONTACT_FORCES,
     INSTRUMENTED_KEYS,
     JOINT_VELOCITIES,
     CotterWrapper,
@@ -62,6 +63,7 @@ __all__ = [
     "JOINT_VELOCITIES",
     "ACTUATOR_FORCES",
     "CONTACT_COUNT",
+    "CONTACT_FORCES",
     "INSTRUMENTED_KEYS",
     # policy
     "Policy",
