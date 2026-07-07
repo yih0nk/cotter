@@ -119,3 +119,22 @@ class TestGuards:
         AdversaryZoo(tmp_path).save(cheap_adversary, ENV_ID, VICTIM)
         # a fresh object reading the same root sees the entry
         assert AdversaryZoo(tmp_path).lookup(ENV_ID, VICTIM, 0.1) is not None
+
+
+class TestPrune:
+    def test_prune_removes_missing_artifacts(self, tmp_path, cheap_adversary):
+        zoo = AdversaryZoo(tmp_path)
+        entry = zoo.save(cheap_adversary, ENV_ID, VICTIM)
+        (tmp_path / entry.path).unlink()
+        removed = zoo.prune()
+        assert [e.key() for e in removed] == [entry.key()]
+        assert zoo.entries() == []  # index rewritten without the dead entry
+
+    def test_prune_keeps_present_artifacts(self, tmp_path, cheap_adversary):
+        zoo = AdversaryZoo(tmp_path)
+        zoo.save(cheap_adversary, ENV_ID, VICTIM)
+        assert zoo.prune() == []
+        assert len(zoo.entries()) == 1
+
+    def test_prune_empty_zoo_is_noop(self, tmp_path):
+        assert AdversaryZoo(tmp_path).prune() == []

@@ -97,6 +97,22 @@ class AdversaryZoo:
             found = [e for e in found if e.env_id == env_id]
         return found
 
+    def prune(self) -> list[ZooEntry]:
+        """Drop index entries whose artifact files are missing.
+
+        Returns the removed entries. Rewrites the index only when
+        something was actually pruned, so a healthy zoo is untouched.
+        """
+        kept, removed = [], []
+        for entry in self._read_index():
+            if (self.root / entry.path).exists():
+                kept.append(entry)
+            else:
+                removed.append(entry)
+        if removed:
+            self._write_index(kept)
+        return removed
+
     def lookup(
         self, env_id: str, victim: str | Path | Policy, epsilon: float
     ) -> ZooEntry | None:
