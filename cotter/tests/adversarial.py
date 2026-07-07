@@ -26,6 +26,7 @@ import gymnasium as gym
 import numpy as np
 
 from cotter.policy import Policy
+from cotter.stats import clopper_pearson
 from cotter.runner import (
     SuccessFn,
     make_seed_sequence,
@@ -147,6 +148,9 @@ class AdversarialResult:
     min_success_rate: float
     passed: bool
     notes: str = ""
+    ci_lower: float = float("nan")  # CI on the adversarial (attacked) success rate
+    ci_upper: float = float("nan")
+    ci_level: float = 0.95
 
     @property
     def success_rate_drop(self) -> float:
@@ -156,7 +160,8 @@ class AdversarialResult:
         verdict = "PASS" if self.passed else "FAIL"
         text = (
             f"{verdict}: success rate {self.clean_success_rate:.1%} clean -> "
-            f"{self.adversarial_success_rate:.1%} under {self.adversary_type} "
+            f"{self.adversarial_success_rate:.1%} "
+            f"[{self.ci_lower:.1%}, {self.ci_upper:.1%}] under {self.adversary_type} "
             f"{self.norm} perturbation (eps={self.epsilon}, n={self.n_episodes}, "
             f"required >= {self.min_success_rate:.0%})"
         )
@@ -171,6 +176,9 @@ class AdversarialResult:
             "norm": self.norm,
             "clean_success_rate": self.clean_success_rate,
             "adversarial_success_rate": self.adversarial_success_rate,
+            "adversarial_ci_lower": self.ci_lower,
+            "adversarial_ci_upper": self.ci_upper,
+            "ci_level": self.ci_level,
             "success_rate_drop": self.success_rate_drop,
             "n_episodes": self.n_episodes,
             "min_success_rate": self.min_success_rate,
@@ -192,6 +200,7 @@ def run_adversarial_test(
     notes: str = "",
     n_workers: int = 1,
     env_factory: Callable[[], gym.Env] | None = None,
+    ci_level: float = 0.95,
 ) -> AdversarialResult:
     """Measure worst-case success rate under bounded observation attack.
 
@@ -227,6 +236,9 @@ def run_adversarial_test(
     clean = rollouts(victim)
     attacked = rollouts(_PerturbedPolicy(victim, adversary))
 
+    attacked_successes = sum(1 for s in attacked.successes if s)
+    ci_lower, ci_upper = clopper_pearson(attacked_successes, n_episodes, ci_level)
+
     return AdversarialResult(
         adversary_type=adversary.name,
         epsilon=epsilon,
@@ -237,6 +249,9 @@ def run_adversarial_test(
         min_success_rate=min_success_rate,
         passed=attacked.success_rate >= min_success_rate,
         notes=notes,
+        ci_lower=ci_lower,
+        ci_upper=ci_upper,
+        ci_level=ci_level,
     )
 
 

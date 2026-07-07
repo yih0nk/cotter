@@ -114,6 +114,20 @@ class TestRunAdversarialTest:
         assert "clean_success_rate" in d
         assert "PASS" in res.summary()
 
+    def test_confidence_interval_on_attacked_rate(self, env, victim):
+        from cotter.stats import clopper_pearson
+
+        res = run_adversarial_test(
+            victim, env, survival, epsilon=0.3, n_episodes=4,
+            min_success_rate=0.0, base_seed=0,
+        )
+        k = round(res.adversarial_success_rate * res.n_episodes)
+        lo, hi = clopper_pearson(k, res.n_episodes, 0.95)
+        assert res.ci_lower == pytest.approx(lo)
+        assert res.ci_upper == pytest.approx(hi)
+        assert res.ci_lower <= res.adversarial_success_rate <= res.ci_upper
+        assert res.to_dict()["adversarial_ci_lower"] == pytest.approx(lo)
+
     def test_dict_obs_env_rejected_with_clear_error(self):
         from stable_baselines3 import PPO
 
