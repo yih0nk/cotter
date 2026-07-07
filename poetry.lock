@@ -310,6 +310,33 @@ torch = ["array-api-compat (>=1.11.0)", "numpy (>=2.1)", "torch (>=1.13.0)"]
 toy-text = ["pygame-ce (>=2.1.3)", "pygame-ce (>=2.1.3)"]
 
 [[package]]
+name = "gymnasium-robotics"
+version = "1.4.2"
+description = "RL Robotics environments with Gymnasium API."
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "gymnasium_robotics-1.4.2-py3-none-any.whl", hash = "sha256:a1743530431cb377e6b3b956d284bc96436fc68bac1648ef205054c178e7dc4b"},
+    {file = "gymnasium_robotics-1.4.2.tar.gz", hash = "sha256:d11e49bf3d481e9049e97536f74e2e62a88e651bdafee9da1b8258736a226010"},
+]
+
+[package.dependencies]
+gymnasium = ">=1.2.0"
+imageio = "*"
+Jinja2 = ">=3.0.3"
+mujoco = ">=2.2.0"
+numpy = ">=1.21.0"
+packaging = "*"
+PettingZoo = ">=1.23.0"
+setuptools = "*"
+
+[package.extras]
+mujoco-py = ["mujoco_py_cython3"]
+mujoco-py-original = ["cython (<3)", "mujoco_py (>=2.1,<2.2)"]
+testing = ["Jinja2 (>=3.0.3)", "PettingZoo (>=1.23.0)", "mujoco_py_cython3", "pytest (==7.0.1)"]
+
+[[package]]
 name = "imageio"
 version = "2.37.3"
 description = "Read and write images and video across all major formats. Supports scientific and volumetric data."
@@ -843,6 +870,31 @@ files = [
 ]
 
 [[package]]
+name = "pettingzoo"
+version = "1.26.1"
+description = "Gymnasium for multi-agent reinforcement learning."
+optional = false
+python-versions = "<3.15,>=3.9"
+groups = ["main"]
+files = [
+    {file = "pettingzoo-1.26.1-py3-none-any.whl", hash = "sha256:f4715dde696bf159d68bb1d3f764ff5083eb7e0cc32ac31a748e81ae530181dd"},
+    {file = "pettingzoo-1.26.1.tar.gz", hash = "sha256:1bae0c7d3c51bf032f2e2abb589b211feec786de76cbbff87f8189ad51649820"},
+]
+
+[package.dependencies]
+gymnasium = ">=1.0.0"
+numpy = ">=1.21.0"
+
+[package.extras]
+all = ["box2d-py (>=2.3.5)", "chess (>=1.9.4)", "multi_agent_ale_py (>=0.1.11)", "pillow (>=8.0.1)", "pygame-ce (>=2.3.0)", "pymunk (>=6.2.0)", "rlcard (>=1.0.5)", "scipy (>=1.4.1)", "shimmy[openspiel] (>=1.2.0)"]
+atari = ["multi_agent_ale_py (>=0.1.11)", "pygame-ce (>=2.3.0)"]
+butterfly = ["pygame-ce (>=2.3.0)", "pymunk (>=6.2.0)"]
+classic = ["chess (>=1.9.4)", "pygame-ce (>=2.3.0)", "rlcard (>=1.0.5)", "shimmy[openspiel] (>=1.2.0)"]
+other = ["pillow (>=8.0.1)"]
+sisl = ["box2d-py (>=2.3.5)", "pygame-ce (>=2.3.0)", "pymunk (>=6.2.0)", "scipy (>=1.4.1)"]
+testing = ["AutoROM (>=0.6.1)", "pre-commit (>=3.5.0)", "pynput (>=1.7.6)", "pytest (>=8.0.0)", "pytest-cov (>=4.1.0)", "pytest-markdown-docs (>=0.5.0)", "pytest-xdist (>=3.5.0)"]
+
+[[package]]
 name = "pillow"
 version = "12.3.0"
 description = "Python Imaging Library (fork)"
@@ -1355,4 +1407,4 @@ type = ["pytest-mypy (>=1.0.1) ; platform_python_implementation != \"PyPy\""]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.12"
-content-hash = "751b43f5630fb5447fe12a128023c31c6ee7dabfb4086b4243917cd1b1145182"
+content-hash = "2b5af181f9637e2ffcd6af679ad3d77e843f6d9a00c65241944bf5a4c73dc103"
