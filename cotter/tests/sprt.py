@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Callable, Iterable
 
+from cotter.stats import clopper_pearson
+
 
 class SPRTDecision(str, Enum):
     PASS = "PASS"  # accepted H1: success rate >= p1
@@ -34,10 +36,25 @@ class SPRTResult:
     alpha: float
     beta: float
     llr_history: list[float] = field(default_factory=list)
+    ci_level: float = 0.95
 
     @property
     def success_rate(self) -> float:
         return self.n_successes / self.n_trials if self.n_trials else float("nan")
+
+    @property
+    def _ci(self) -> tuple[float, float]:
+        if self.n_trials == 0:
+            return float("nan"), float("nan")
+        return clopper_pearson(self.n_successes, self.n_trials, self.ci_level)
+
+    @property
+    def ci_lower(self) -> float:
+        return self._ci[0]
+
+    @property
+    def ci_upper(self) -> float:
+        return self._ci[1]
 
     def to_dict(self) -> dict:
         return {
@@ -45,6 +62,9 @@ class SPRTResult:
             "n_trials": self.n_trials,
             "n_successes": self.n_successes,
             "success_rate": self.success_rate,
+            "ci_lower": self.ci_lower,
+            "ci_upper": self.ci_upper,
+            "ci_level": self.ci_level,
             "llr": self.llr,
             "upper_boundary": self.upper_boundary,
             "lower_boundary": self.lower_boundary,

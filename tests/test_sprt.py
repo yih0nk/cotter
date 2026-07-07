@@ -11,6 +11,7 @@ import math
 
 import pytest
 
+from cotter.stats import clopper_pearson
 from cotter.tests.sprt import SPRT, SPRTDecision, run_sprt
 
 A = math.log(19)
@@ -126,3 +127,20 @@ class TestValidationAndStateGuards:
         assert d["decision"] == "PASS"
         assert d["n_trials"] == 6
         assert d["success_rate"] == 1.0
+        assert d["ci_level"] == 0.95
+        assert d["ci_lower"] == pytest.approx(clopper_pearson(6, 6)[0])
+        assert d["ci_upper"] == 1.0
+
+
+class TestConfidenceInterval:
+    def test_ci_matches_clopper_pearson(self):
+        # 8 successes / 1 failure over 9 trials in a mixed pass sequence
+        res = run_sprt(iter([True, False] + [True] * 7), p0=0.5, p1=0.9)
+        assert res.n_trials == 9 and res.n_successes == 8
+        lo, hi = clopper_pearson(8, 9, 0.95)
+        assert res.ci_lower == pytest.approx(lo)
+        assert res.ci_upper == pytest.approx(hi)
+
+    def test_point_estimate_within_ci(self):
+        res = run_sprt(iter([True, False] + [True] * 7), p0=0.5, p1=0.9)
+        assert res.ci_lower <= res.success_rate <= res.ci_upper
