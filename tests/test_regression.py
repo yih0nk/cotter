@@ -100,3 +100,39 @@ class TestWilcoxon:
         res = wilcoxon_regression(baseline, candidate)
         assert res.decision == RegressionDecision.NO_REGRESSION
         assert res.p_value > 0.5
+
+
+class TestEffectSizes:
+    def test_mcnemar_odds_ratio(self):
+        res = mcnemar_exact(*paired_outcomes(b=9, c=1))
+        assert res.effect_size_name == "discordant_odds_ratio"
+        assert res.effect_size == pytest.approx(9.0)  # 9/1
+        assert res.to_dict()["effect_size"] == pytest.approx(9.0)
+
+    def test_mcnemar_odds_ratio_infinite_when_candidate_never_wins(self):
+        res = mcnemar_exact(*paired_outcomes(b=5, c=0))
+        assert res.effect_size == float("inf")
+
+    def test_mcnemar_odds_ratio_nan_without_discordant_pairs(self):
+        import math
+
+        res = mcnemar_exact(*paired_outcomes(b=0, c=0))
+        assert math.isnan(res.effect_size)
+
+    def test_wilcoxon_rank_biserial_all_worse_is_minus_one(self):
+        # every paired difference negative -> rank-biserial = -1
+        baseline = [100.0, 98.0, 102.0, 99.0, 101.0, 100.5, 97.0, 103.0]
+        candidate = [x - 5.0 for x in baseline]
+        res = wilcoxon_regression(baseline, candidate)
+        assert res.effect_size_name == "rank_biserial_correlation"
+        assert res.effect_size == pytest.approx(-1.0)
+
+    def test_wilcoxon_rank_biserial_all_better_is_plus_one(self):
+        baseline = [10.0, 11.0, 9.0, 10.5, 9.5, 10.2]
+        candidate = [x + 3.0 for x in baseline]
+        res = wilcoxon_regression(baseline, candidate)
+        assert res.effect_size == pytest.approx(1.0)
+
+    def test_wilcoxon_rank_biserial_zero_when_identical(self):
+        vals = [1.0, 2.0, 3.0]
+        assert wilcoxon_regression(vals, list(vals)).effect_size == 0.0

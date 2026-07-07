@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Sequence
 
+import numpy as np
 from scipy import stats
 
 
@@ -35,6 +36,8 @@ class RegressionResult:
     baseline_metric: float
     candidate_metric: float
     detail: dict
+    effect_size: float = float("nan")
+    effect_size_name: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -42,6 +45,8 @@ class RegressionResult:
             "test": self.test,
             "p_value": self.p_value,
             "statistic": self.statistic,
+            "effect_size": self.effect_size,
+            "effect_size_name": self.effect_size_name,
             "alpha": self.alpha,
             "n_pairs": self.n_pairs,
             "baseline_metric": self.baseline_metric,
@@ -83,6 +88,16 @@ def mcnemar_exact(
     else:
         p_value = stats.binomtest(b, n=b + c, p=0.5, alternative="greater").pvalue
 
+    # Discordant-pair odds ratio b/c: > 1 means the candidate loses more
+    # pairs than it wins (worse); inf when it never wins a discordant pair;
+    # NaN when there are no discordant pairs at all.
+    if b == 0 and c == 0:
+        odds_ratio = float("nan")
+    elif c == 0:
+        odds_ratio = float("inf")
+    else:
+        odds_ratio = b / c
+
     is_regression = p_value < alpha
     return RegressionResult(
         decision=RegressionDecision.REGRESSION if is_regression else RegressionDecision.NO_REGRESSION,
@@ -94,6 +109,8 @@ def mcnemar_exact(
         baseline_metric=sum(map(bool, baseline_successes)) / n,
         candidate_metric=sum(map(bool, candidate_successes)) / n,
         detail={"discordant_baseline_only": b, "discordant_candidate_only": c},
+        effect_size=odds_ratio,
+        effect_size_name="discordant_odds_ratio",
     )
 
 
@@ -127,4 +144,23 @@ def wilcoxon_regression(
         baseline_metric=float(sum(baseline_metric) / n),
         candidate_metric=float(sum(candidate_metric) / n),
         detail={"mean_paired_difference": float(sum(diffs) / n)},
+        effect_size=_rank_biserial(diffs),
+        effect_size_name="rank_biserial_correlation",
     )
+
+
+def _rank_biserial(diffs: Sequence[float]) -> float:
+    """Matched-pairs rank-biserial correlation in [-1, 1].
+
+    (T+ - T-) / (T+ + T-) over the ranks of the nonzero paired
+    differences. Negative means the candidate's metric is systematically
+    lower (the regression direction); 0 means no nonzero differences.
+    """
+    nonzero = np.array([d for d in diffs if d != 0], dtype=float)
+    if nonzero.size == 0:
+        return 0.0
+    ranks = stats.rankdata(np.abs(nonzero))
+    t_plus = float(ranks[nonzero > 0].sum())
+    t_minus = float(ranks[nonzero < 0].sum())
+    total = t_plus + t_minus
+    return (t_plus - t_minus) / total
