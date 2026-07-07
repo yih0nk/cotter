@@ -1,0 +1,145 @@
+{
+  "cotter_report_version": 1,
+  "policy_name": "victim_ppo",
+  "env_id": "InvertedPendulum-v5",
+  "created_at": "2026-07-07T07:49:39+00:00",
+  "metadata": {
+    "seed": 0,
+    "epsilon": 0.07,
+    "safety_limits": {
+      "cotter/joint_velocities": 5.0,
+      "cotter/actuator_forces": 2.5,
+      "cotter/contact_count": 0.5
+    },
+    "success_criterion": "episode length >= 1000 (full horizon survived)"
+  },
+  "overall_passed": false,
+  "results": [
+    {
+      "category": "performance",
+      "name": "sprt_success_rate",
+      "passed": true,
+      "summary": "PASS: 18/18 successes (100.0%) after 18 sequential trials (H0 p<=0.8, H1 p>=0.95)",
+      "data": {
+        "decision": "PASS",
+        "n_trials": 18,
+        "n_successes": 18,
+        "success_rate": 1.0,
+        "llr": 3.0933046246798637,
+        "upper_boundary": 2.9444389791664403,
+        "lower_boundary": -2.9444389791664403,
+        "p0": 0.8,
+        "p1": 0.95,
+        "alpha": 0.05,
+        "beta": 0.05
+      }
+    },
+    {
+      "category": "safety",
+      "name": "hard_limits",
+      "passed": true,
+      "summary": "PASS: no violations in 20020 timesteps across 20 trials",
+      "data": {
+        "decision": "PASS",
+        "limits": [
+          {
+            "quantity": "cotter/joint_velocities",
+            "max_abs": 5.0
+          },
+          {
+            "quantity": "cotter/actuator_forces",
+            "max_abs": 2.5
+          },
+          {
+            "quantity": "cotter/contact_count",
+            "max_abs": 0.5
+          }
+        ],
+        "n_trials": 20,
+        "n_timesteps_checked": 20020,
+        "n_violations": 0,
+        "violations": [],
+        "worst_observed": {
+          "cotter/joint_velocities": 0.6789333169630953,
+          "cotter/actuator_forces": 0.9062168598175049,
+          "cotter/contact_count": 0.0
+        }
+      }
+    },
+    {
+      "category": "regression",
+      "name": "success_mcnemar",
+      "passed": false,
+      "summary": "REGRESSION: baseline 1.000 vs candidate 0.000 over 30 paired trials (p=9.31e-10, mcnemar_exact_one_sided)",
+      "data": {
+        "decision": "REGRESSION",
+        "test": "mcnemar_exact_one_sided",
+        "p_value": 9.313225746154785e-10,
+        "statistic": 30.0,
+        "alpha": 0.05,
+        "n_pairs": 30,
+        "baseline_metric": 1.0,
+        "candidate_metric": 0.0,
+        "detail": {
+          "discordant_baseline_only": 30,
+          "discordant_candidate_only": 0
+        }
+      }
+    },
+    {
+      "category": "regression",
+      "name": "return_wilcoxon",
+      "passed": false,
+      "summary": "REGRESSION: baseline 1000.000 vs candidate 94.900 over 30 paired trials (p=8.63e-07, wilcoxon_signed_rank_one_sided)",
+      "data": {
+        "decision": "REGRESSION",
+        "test": "wilcoxon_signed_rank_one_sided",
+        "p_value": 8.628428940029019e-07,
+        "statistic": 0.0,
+        "alpha": 0.05,
+        "n_pairs": 30,
+        "baseline_metric": 1000.0,
+        "candidate_metric": 94.9,
+        "detail": {
+          "mean_paired_difference": -905.1
+        }
+      }
+    },
+    {
+      "category": "adversarial",
+      "name": "random_baseline",
+      "passed": true,
+      "summary": "PASS: success rate 100.0% clean -> 100.0% under random linf perturbation (eps=0.07, n=20, required >= 50%) [uniform random baseline]",
+      "data": {
+        "adversary_type": "random",
+        "epsilon": 0.07,
+        "norm": "linf",
+        "clean_success_rate": 1.0,
+        "adversarial_success_rate": 1.0,
+        "success_rate_drop": 0.0,
+        "n_episodes": 20,
+        "min_success_rate": 0.5,
+        "passed": true,
+        "notes": "uniform random baseline"
+      }
+    },
+    {
+      "category": "adversarial",
+      "name": "learned_ppo",
+      "passed": false,
+      "summary": "FAIL: success rate 100.0% clean -> 0.0% under ppo linf perturbation (eps=0.07, n=20, required >= 50%) [trained PPO adversary]",
+      "data": {
+        "adversary_type": "ppo",
+        "epsilon": 0.07,
+        "norm": "linf",
+        "clean_success_rate": 1.0,
+        "adversarial_success_rate": 0.0,
+        "success_rate_drop": 1.0,
+        "n_episodes": 20,
+        "min_success_rate": 0.5,
+        "passed": false,
+        "notes": "trained PPO adversary"
+      }
+    }
+  ]
+}

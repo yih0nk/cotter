@@ -54,7 +54,7 @@ class TestAdapters:
         r = report.results[0]
         assert r.category == "regression"
         assert r.passed is True
-        assert "p=1.0000" in r.summary
+        assert "p=1" in r.summary
 
 
 class TestOutput:

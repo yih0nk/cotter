@@ -111,7 +111,7 @@ class TestReport:
             result.decision != RegressionDecision.REGRESSION,
             f"{result.decision.value}: baseline {result.baseline_metric:.3f} vs "
             f"candidate {result.candidate_metric:.3f} over {result.n_pairs} paired "
-            f"trials (p={result.p_value:.4f}, {result.test})",
+            f"trials (p={result.p_value:.3g}, {result.test})",
             result.to_dict(),
         )
 
