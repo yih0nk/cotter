@@ -264,31 +264,59 @@ random-init baseline (0%, ~0 m). Here the learned adversary happened to
 underperform the random baseline at this budget (the PPO attacker is
 time-boxed); Cotter reports both honestly.
 
-## Manipulation robotics (Dict observations)
+## Real manipulation demo (HER + SAC)
 
 Cotter handles the `Dict` observation spaces used by
 [gymnasium-robotics](https://robotics.farama.org/) Fetch/manipulation
-envs, where success is a goal flag rather than a reward threshold. A
-real captured run on a PPO policy trained for FetchReach
-([`examples/fetch_reach.yaml`](examples/fetch_reach.yaml)):
+envs, where success is a goal flag (`{type: info_flag, key: is_success}`)
+rather than a reward threshold.
+
+The intended target was **FetchPickAndPlace-v4** trained with HER+SAC
+(`scripts/train_fetch_pickplace.py`), but it did not converge on the M5
+CPU within the time budget (0% success through 100k steps). Per the
+documented fallback the demo uses the much easier **FetchReachDense-v4**,
+which the same HER+SAC recipe solves to 100% in about a minute. Real
+captured report from `cotter run --policy
+artifacts/victim_fetch_reach_hersac.zip --config
+examples/fetch_pickplace.yaml`:
 
 ```
-COTTER TEST REPORT — policy 'victim_ppo_fetch_reach' on FetchReachDense-v4
+COTTER TEST REPORT — policy 'victim_fetch_reach_hersac' on FetchReachDense-v4
 [PASS] performance/sprt_success_rate
-       PASS: 18/18 successes (100.0%) after 18 sequential trials (H0 p<=0.8, H1 p>=0.95)
+       PASS: 8/8 successes (100.0%, 95% CI [63.1%, 100.0%]) after 8 sequential trials (H0 p<=0.4, H1 p>=0.6)
 [PASS] safety/hard_limits
        PASS: no violations in 1020 timesteps across 20 trials
 [PASS] regression/success_mcnemar
-       NO_REGRESSION: baseline 1.000 vs candidate 1.000 over 30 paired trials (p=1, ...)
-OVERALL: PASS (0 failing, 4 passing, 0 informational)
+       NO_REGRESSION: baseline 0.033 vs candidate 1.000 over 30 paired trials (p=1, discordant_odds_ratio=0, ...)
+[PASS] regression/return_wilcoxon
+       NO_REGRESSION: baseline -8.198 vs candidate -1.013 over 30 paired trials (p=1, rank_biserial_correlation=1, ...)
+[PASS] adversarial/random_baseline
+       PASS: success rate 100.0% clean -> 55.0% [31.5%, 76.9%] under random linf perturbation (eps=0.1, n=20)
+[FAIL] adversarial/learned_ppo
+       FAIL: success rate 100.0% clean -> 0.0% [0.0%, 16.8%] under ppo linf perturbation (eps=0.1, n=20, required >= 50%)
+OVERALL: FAIL (1 failing, 5 passing, 0 informational)
 ```
 
-Success here is `{type: info_flag, key: is_success}`; the safety limits
-target Fetch's joint velocities and per-body contact forces (its
-end-effector is mocap-controlled, so `actuator_forces` is empty and any
-limit on it passes trivially). Observation-perturbation *adversarial*
-testing is Box-only for now and is rejected with a clear message on
-Dict-obs envs.
+The safety limits target Fetch's joint velocities and contacts (its
+end-effector is mocap-controlled, so `actuator_forces` is empty and a
+limit on it passes trivially). **Adversarial perturbation works on Dict
+observations**: it perturbs only the sensed-state `observation` sub-key
+(leaving the goal keys untouched), and the headline result reappears on
+a manipulation env — the learned PPO adversary drives the victim to 0%
+at ε = 0.1 where random noise of the same budget only reaches 55%.
+
+Regression *detection* is a one-liner. Comparing the trained victim
+against its random-init counterpart flags the difference immediately:
+
+```
+$ cotter compare --baseline victim_fetch_reach_hersac.zip \
+      --candidate victim_fetch_reach_randominit.zip --config examples/fetch_pickplace.yaml
+[FAIL] regression/success_mcnemar
+       REGRESSION: baseline 1.000 vs candidate 0.033 over 30 paired trials (p=1.86e-09, discordant_odds_ratio=inf, ...)
+[FAIL] regression/return_wilcoxon
+       REGRESSION: baseline -1.013 vs candidate -8.198 over 30 paired trials (p=9.31e-10, rank_biserial_correlation=-1, ...)
+OVERALL: FAIL (2 failing, 0 passing, 0 informational)   # exit code 1
+```
 
 ## Adversary zoo
 
