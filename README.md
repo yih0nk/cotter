@@ -28,7 +28,7 @@ Requires Python 3.11 and [Poetry](https://python-poetry.org/).
 git clone https://github.com/yih0nk/cotter.git
 cd cotter
 poetry install
-poetry run pytest   # 152 tests, unit + real-MuJoCo integration
+poetry run pytest   # 213 tests, unit + real-MuJoCo integration
 ```
 
 ## Quickstart (CLI)
@@ -70,7 +70,53 @@ OVERALL: FAIL (1 failing, 5 passing, 0 informational)
 regression section compares the victim against itself as a sanity check,
 hence p = 1.) The config file schema is documented in
 [`examples/inverted_pendulum.yaml`](examples/inverted_pendulum.yaml) and
-`cotter/config.py`.
+`cotter/config.py`. Every reported success rate carries a Clopper-Pearson
+confidence interval (SPRT and adversarial results), and regression
+results carry an effect size — the discordant-pair odds ratio for
+McNemar, the rank-biserial correlation for Wilcoxon.
+
+### Comparing two policy versions
+
+`cotter compare` runs only the regression test between a baseline and a
+candidate and exits 0 (no regression) or 1 (regression detected) — a
+drop-in CI gate:
+
+```sh
+poetry run cotter compare \
+    --baseline old_policy.zip --candidate new_policy.zip \
+    --config examples/inverted_pendulum.yaml
+```
+
+### Parallel rollouts
+
+Safety, regression, and fixed-N adversarial evaluation parallelize across
+worker processes via `AsyncVectorEnv`. Set `n_workers` in the relevant
+config section (default 1 = serial); SPRT stays serial by design because
+it must check its boundary after each trial. Parallel results are
+bit-identical to serial on the same seeds — each episode runs in an
+isolated env seeded from a disjoint per-worker slice.
+
+```yaml
+safety:
+  n_episodes: 40
+  n_workers: 4
+  limits: { cotter/joint_velocities: 5.0 }
+```
+
+### Managing the adversary zoo
+
+```sh
+poetry run cotter zoo list                 # cached adversaries (+ --env filter)
+poetry run cotter zoo prune                # drop entries with missing artifacts
+```
+
+### Backends
+
+`RunConfig.backend` (default `gymnasium`) selects the simulator backend
+through `BackendFactory.from_name`. `GymnasiumBackend` is the CPU MuJoCo
+default; `IsaacSimBackend` targets NVIDIA Isaac Sim and raises
+`BackendNotAvailableError` at construction when `omni.isaac.gym` is not
+installed (it is not exercised on the CPU dev machine).
 
 ## Quickstart (Python API)
 
@@ -231,23 +277,26 @@ EUMachineryReg2027(report)   # raises LicenseRequiredError in the OSS build
 
 ```
 cotter/
-├── cli.py               # `cotter run` entrypoint
+├── cli.py               # `cotter run` / `compare` / `zoo` entrypoints
 ├── config.py            # YAML config schema + loader
 ├── pipeline.py          # executes the declared categories, aggregates a report
+├── backends.py          # simulator backend abstraction (gymnasium / isaac-sim)
 ├── success.py           # declarative success criteria (min_length/return/info_flag)
+├── stats.py             # Clopper-Pearson exact binomial confidence intervals
 ├── policy.py            # black-box loading (SB3 .zip / torch .pt) + space validation
-├── runner.py            # seeded rollouts -> structured EpisodeRecords
+├── runner.py            # seeded rollouts (serial + parallel) -> EpisodeRecords
 ├── envs/
 │   ├── wrapper.py       # instruments info dict with qvel / actuator_force / contacts
-│   └── registry.py      # resolves gymnasium-robotics (and other) extension envs
+│   ├── registry.py      # resolves gymnasium-robotics (and other) extension envs
+│   └── factory.py       # picklable env factory for parallel rollouts
 ├── report.py            # TestReport: console summary + JSON (results container only)
 ├── zoo/                 # adversary registry keyed by (env, victim, epsilon)
 ├── compliance/          # paid-tier regulatory document stub (license required)
 └── tests/
-    ├── sprt.py          # Wald's sequential probability ratio test
+    ├── sprt.py          # Wald's sequential probability ratio test (+ CI)
     ├── safety.py        # per-timestep hard limits, zero tolerance
-    ├── regression.py    # exact McNemar + Wilcoxon on matched pairs
-    └── adversarial.py   # observation-perturbation attack (PPO or random)
+    ├── regression.py    # exact McNemar + Wilcoxon on matched pairs (+ effect sizes)
+    └── adversarial.py   # observation-perturbation attack (PPO or random, + CI)
 ```
 
 Design notes:
