@@ -1,0 +1,49 @@
+# Manipulation demo (HER + SAC).
+#
+#   poetry run cotter run \
+#       --policy artifacts/victim_fetch_reach_hersac.zip \
+#       --config examples/fetch_pickplace.yaml
+#
+# NOTE ON THE ENV: the intended target was FetchPickAndPlace-v4, but
+# HER+SAC did not converge on the M5 CPU within the time budget (0%
+# success through 100k steps). Per the documented fallback, this demo
+# uses the much easier dense-reward reach task, FetchReachDense-v4, which
+# HER+SAC solves quickly. The training script and hyperparameters are the
+# same (scripts/train_fetch_pickplace.py --env ...); only the env differs.
+
+env: FetchReachDense-v4
+algo: SAC
+base_seed: 0
+
+success:
+  type: info_flag
+  key: is_success
+
+performance:
+  p0: 0.40      # SPRT band specified for the manipulation demo
+  p1: 0.60
+  alpha: 0.05
+  beta: 0.05
+  n_max: 50
+
+safety:
+  n_episodes: 20
+  limits:
+    cotter/joint_velocities: 10.0   # rad/s; Fetch arm joints
+    cotter/actuator_forces: 100.0   # N; empty on mocap-controlled Fetch (passes)
+    cotter/contact_count: 20.0      # generous cap on simultaneous contacts
+
+regression:
+  baseline: ../artifacts/victim_fetch_reach_randominit.zip   # random init, same arch
+  n_pairs: 30
+  alpha: 0.05
+
+adversarial:
+  epsilon: 0.1              # L-inf perturbation on the 'observation' sub-key
+  n_episodes: 20
+  min_success_rate: 0.5
+  train: true
+  timesteps: 200000
+  max_seconds: 1800         # time-box the PPO adversary to 30 min; random fallback
+
+report: ../artifacts/fetch_pickplace_report.json
