@@ -19,11 +19,13 @@ Two adversaries are provided:
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import Callable, Protocol, Sequence
 
 import gymnasium as gym
 import numpy as np
+from stable_baselines3.common.callbacks import BaseCallback
 
 from cotter.policy import Policy
 from cotter.stats import clopper_pearson
@@ -299,6 +301,21 @@ def run_adversarial_test(
     )
 
 
+class _StopTrainingOnMaxSeconds(BaseCallback):
+    """Halt SB3 training once a wall-clock budget elapses."""
+
+    def __init__(self, max_seconds: float):
+        super().__init__()
+        self.max_seconds = max_seconds
+        self._start = None
+
+    def _on_training_start(self) -> None:
+        self._start = time.time()
+
+    def _on_step(self) -> bool:
+        return (time.time() - self._start) < self.max_seconds
+
+
 def train_adversary(
     victim: Policy,
     env: gym.Env,
@@ -307,12 +324,14 @@ def train_adversary(
     seed: int = 0,
     verbose: int = 0,
     target_key: str = DEFAULT_TARGET_KEY,
+    max_seconds: float | None = None,
 ):
     """Train a PPO adversary against the frozen victim.
 
     Returns an adversary usable with :func:`run_adversarial_test`.
-    Raises on failure — use :func:`get_adversary` for automatic fallback
-    to the random baseline.
+    ``max_seconds`` time-boxes training (returning the partially trained
+    adversary at the deadline). Raises on failure — use
+    :func:`get_adversary` for automatic fallback to the random baseline.
     """
     from stable_baselines3 import PPO
 
@@ -334,7 +353,8 @@ def train_adversary(
         verbose=verbose,
         device="cpu",
     )
-    model.learn(total_timesteps=timesteps)
+    callback = _StopTrainingOnMaxSeconds(max_seconds) if max_seconds else None
+    model.learn(total_timesteps=timesteps, callback=callback)
     return PPOAdversary(model, epsilon)
 
 
@@ -347,6 +367,7 @@ def get_adversary(
     train: bool = True,
     log: Callable[[str], None] = print,
     target_key: str = DEFAULT_TARGET_KEY,
+    max_seconds: float | None = None,
 ):
     """Return (adversary, notes): the trained PPO adversary, or the random
     baseline with an explanatory note if training is disabled or fails."""
@@ -354,7 +375,8 @@ def get_adversary(
         return RandomAdversary(epsilon, seed=seed), "learned adversary disabled; random baseline"
     try:
         adversary = train_adversary(
-            victim, env, epsilon, timesteps=timesteps, seed=seed, target_key=target_key
+            victim, env, epsilon, timesteps=timesteps, seed=seed,
+            target_key=target_key, max_seconds=max_seconds,
         )
         return adversary, ""
     except Exception as exc:  # deliberate blanket catch: never lose the category

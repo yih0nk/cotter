@@ -201,3 +201,15 @@ class TestLearnedAdversary:
         adv, notes = get_adversary(victim, env, epsilon=0.1, train=False)
         assert adv.name == "random"
         assert "disabled" in notes
+
+    def test_max_seconds_time_boxes_training(self, env, victim):
+        import time
+
+        # A tiny budget must cut off a large requested timestep count fast.
+        start = time.time()
+        adv = train_adversary(
+            victim, env, epsilon=0.1, timesteps=10_000_000, max_seconds=2.0
+        )
+        elapsed = time.time() - start
+        assert adv.name == "ppo"
+        assert elapsed < 30  # stopped far short of 10M steps

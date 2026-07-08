@@ -69,7 +69,7 @@ def _obtain_adversary(policy_path, policy, env, cfg, adv_cfg, log):
     if not adv_cfg.use_zoo:
         return get_adversary(
             policy, env, adv_cfg.epsilon, timesteps=adv_cfg.timesteps,
-            seed=cfg.base_seed, log=log,
+            seed=cfg.base_seed, log=log, max_seconds=adv_cfg.max_seconds,
         )
 
     from cotter.tests.adversarial import train_adversary
@@ -86,7 +86,8 @@ def _obtain_adversary(policy_path, policy, env, cfg, adv_cfg, log):
 
     log(f"[cotter]   no cached adversary; training and storing in zoo ({zoo.root})")
     adversary = train_adversary(
-        policy, env, adv_cfg.epsilon, timesteps=adv_cfg.timesteps, seed=cfg.base_seed
+        policy, env, adv_cfg.epsilon, timesteps=adv_cfg.timesteps,
+        seed=cfg.base_seed, max_seconds=adv_cfg.max_seconds,
     )
     entry = zoo.save(adversary, cfg.env, victim_ref, notes=f"trained via cotter run, {cfg.env}")
     log(f"[cotter]   stored adversary at {entry.path}")

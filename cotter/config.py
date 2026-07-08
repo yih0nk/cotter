@@ -83,6 +83,7 @@ class AdversarialConfig:
     use_zoo: bool = False  # reuse/cache the trained adversary in the zoo
     zoo_root: str | None = None  # override the default ~/.cotter/zoo
     n_workers: int = 1  # parallel rollout workers for the fixed-N eval; 1 = serial
+    max_seconds: float | None = None  # wall-clock time-box on adversary training
 
 
 @dataclass
