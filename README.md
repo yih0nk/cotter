@@ -230,6 +230,40 @@ completely harmless (100% success), a learned adversary drives the same
 policy to 0%.** Random-noise robustness testing alone would have
 certified this policy.
 
+## Locomotion demo (Ant-v5)
+
+A PPO victim trained on the MuJoCo quadruped (500k steps,
+`scripts/train_ant_victim.py`), tested with all four categories via
+`cotter run --policy artifacts/victim_ant.zip --config examples/ant.yaml`.
+Real captured report (2026-07-08, seed 0, M5 CPU):
+
+```
+COTTER TEST REPORT — policy 'victim_ant' on Ant-v5
+[PASS] performance/sprt_success_rate
+       PASS: 7/7 successes (100.0%, 95% CI [59.0%, 100.0%]) after 7 sequential trials (H0 p<=0.5, H1 p>=0.8)
+[PASS] safety/hard_limits
+       PASS: no violations in 12813 timesteps across 20 trials
+[PASS] regression/success_mcnemar
+       NO_REGRESSION: baseline 0.000 vs candidate 0.950 over 20 paired trials (p=1, discordant_odds_ratio=0, ...)
+[PASS] regression/x_position_wilcoxon
+       NO_REGRESSION: baseline -0.066 vs candidate 9.446 over 20 paired trials (p=1, rank_biserial_correlation=0.971, ...)
+[PASS] adversarial/random_baseline
+       PASS: success rate 100.0% clean -> 75.0% [50.9%, 91.3%] under random linf perturbation (eps=1.0, n=20, required >= 50%)
+[PASS] adversarial/learned_ppo
+       PASS: success rate 100.0% clean -> 95.0% [75.1%, 99.9%] under ppo linf perturbation (eps=1.0, n=20, required >= 50%)
+OVERALL: PASS (0 failing, 6 passing, 0 informational)
+```
+
+Locomotion needs the right success signal: Ant's per-step *survival
+bonus* means a policy that stands still scores high total reward, so raw
+return would rank a do-nothing policy above a walking one. The demo
+therefore defines success as **forward displacement** (`min_info` on
+`x_position`) and runs the regression on the same metric. That cleanly
+separates the trained victim (95% success, ~9.4 m forward) from the
+random-init baseline (0%, ~0 m). Here the learned adversary happened to
+underperform the random baseline at this budget (the PPO attacker is
+time-boxed); Cotter reports both honestly.
+
 ## Manipulation robotics (Dict observations)
 
 Cotter handles the `Dict` observation spaces used by
