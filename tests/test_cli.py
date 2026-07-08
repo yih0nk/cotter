@@ -69,15 +69,18 @@ class TestRunCommand:
         assert "OVERALL: FAIL" in capsys.readouterr().out
 
     def test_env_override_mismatch_fails_loudly(self, tmp_path, capsys):
-        # Overriding to an env with different spaces must exit 2 with the
-        # space-mismatch message, not crash mid-rollout.
+        # Overriding to an env with different spaces must exit 2 with a
+        # space-mismatch message, not crash mid-rollout. The mismatch is
+        # caught either by SB3 at load time (env is passed for HER support)
+        # or by cotter's own validate_spaces probe; both are loud.
         cfg = write_config(tmp_path, MINIMAL)
         rc = main([
             "run", "--policy", str(VICTIM), "--config", str(cfg),
             "--env", "HalfCheetah-v5", "--quiet",
         ])
+        err = capsys.readouterr().err
         assert rc == 2
-        assert "trained on observations" in capsys.readouterr().err
+        assert "spaces do not match" in err or "trained on observations" in err
 
     def test_report_override(self, tmp_path):
         cfg = write_config(tmp_path, MINIMAL)
