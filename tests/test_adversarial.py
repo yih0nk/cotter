@@ -128,7 +128,7 @@ class TestRunAdversarialTest:
         assert res.ci_lower <= res.adversarial_success_rate <= res.ci_upper
         assert res.to_dict()["adversarial_ci_lower"] == pytest.approx(lo)
 
-    def test_dict_obs_env_rejected_with_clear_error(self):
+    def test_dict_obs_supported_via_target_key(self):
         from stable_baselines3 import PPO
 
         from cotter.envs.registry import make_env_by_id
@@ -138,8 +138,29 @@ class TestRunAdversarialTest:
             PPO("MultiInputPolicy", fetch, n_steps=32, verbose=0, device="cpu"),
             fetch,
         )
-        with pytest.raises(TypeError, match="Box observation spaces only"):
-            run_adversarial_test(policy, fetch, lambda *a: True, epsilon=0.05)
+        # Dict obs is now perturbable on its 'observation' sub-key.
+        res = run_adversarial_test(
+            policy, fetch, lambda *a: True, epsilon=0.05, n_episodes=2,
+            min_success_rate=0.0,
+        )
+        assert 0.0 <= res.adversarial_success_rate <= 1.0
+        fetch.close()
+
+    def test_dict_obs_bad_target_key_rejected(self):
+        from stable_baselines3 import PPO
+
+        from cotter.envs.registry import make_env_by_id
+
+        fetch = make_env_by_id("FetchReachDense-v4")
+        policy = load_policy(
+            PPO("MultiInputPolicy", fetch, n_steps=32, verbose=0, device="cpu"),
+            fetch,
+        )
+        with pytest.raises(TypeError, match="must be a Box"):
+            run_adversarial_test(
+                policy, fetch, lambda *a: True, epsilon=0.05,
+                target_key="not_a_key",
+            )
         fetch.close()
 
     def test_fail_when_below_threshold(self, env, victim):

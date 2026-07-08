@@ -78,30 +78,73 @@ class PPOAdversary:
         return np.clip(np.asarray(action, dtype=float), -1.0, 1.0) * self.epsilon
 
 
+DEFAULT_TARGET_KEY = "observation"
+
+
+def perturbable_shape(obs_space: gym.Space, target_key: str = DEFAULT_TARGET_KEY):
+    """Shape of the array the adversary perturbs, or raise if unsupported.
+
+    Box spaces are perturbed whole. Dict spaces (gymnasium-robotics style)
+    are perturbed only on their ``target_key`` sub-array — the *sensed*
+    state — leaving goal keys (the task specification) untouched.
+    """
+    if isinstance(obs_space, gym.spaces.Box):
+        return obs_space.shape
+    if isinstance(obs_space, gym.spaces.Dict):
+        sub = obs_space.spaces.get(target_key)
+        if not isinstance(sub, gym.spaces.Box):
+            raise TypeError(
+                f"adversarial perturbation of a Dict observation targets the "
+                f"'{target_key}' key, which must be a Box; available Box keys: "
+                f"{[k for k, v in obs_space.spaces.items() if isinstance(v, gym.spaces.Box)]}"
+            )
+        return sub.shape
+    raise TypeError(
+        f"adversarial testing supports Box or Dict observation spaces; got "
+        f"{type(obs_space).__name__}"
+    )
+
+
+def apply_perturbation(obs, delta, target_key: str = DEFAULT_TARGET_KEY):
+    """Add ``delta`` to a (possibly Dict) observation's perturbable part."""
+    if isinstance(obs, dict):
+        perturbed = dict(obs)
+        perturbed[target_key] = obs[target_key] + delta
+        return perturbed
+    return obs + delta
+
+
+def _target_array(obs, target_key: str = DEFAULT_TARGET_KEY):
+    return obs[target_key] if isinstance(obs, dict) else obs
+
+
 class ObservationPerturbationEnv(gym.Env):
     """The attack problem phrased as an RL environment for the adversary.
 
     Observation: the true environment observation. Action: a vector in
-    [-1, 1]^obs_dim, scaled by epsilon and added to what the frozen victim
-    sees. Reward: negative of the victim's reward, so maximizing adversary
+    [-1, 1]^k, scaled by epsilon and added to what the frozen victim sees
+    (the whole Box obs, or the ``target_key`` sub-array of a Dict obs).
+    Reward: negative of the victim's reward, so maximizing adversary
     return minimizes victim performance.
     """
 
     metadata = {"render_modes": []}
 
-    def __init__(self, env: gym.Env, victim: Policy, epsilon: float) -> None:
+    def __init__(
+        self, env: gym.Env, victim: Policy, epsilon: float,
+        target_key: str = DEFAULT_TARGET_KEY,
+    ) -> None:
         super().__init__()
         if epsilon <= 0:
             raise ValueError(f"epsilon must be positive; got {epsilon}")
-        obs_space = env.observation_space
-        if not isinstance(obs_space, gym.spaces.Box):
-            raise TypeError("ObservationPerturbationEnv requires a Box observation space")
         self.env = env
         self.victim = victim
         self.epsilon = epsilon
-        self.observation_space = obs_space
-        self.action_space = gym.spaces.Box(-1.0, 1.0, shape=obs_space.shape, dtype=np.float32)
-        self._true_obs: np.ndarray | None = None
+        self.target_key = target_key
+        self.observation_space = env.observation_space
+        pert_shape = perturbable_shape(env.observation_space, target_key)
+        self.action_space = gym.spaces.Box(-1.0, 1.0, shape=pert_shape, dtype=np.float32)
+        self._true_obs = None
 
     def reset(self, *, seed: int | None = None, options=None):
         obs, info = self.env.reset(seed=seed, options=options)
@@ -110,7 +153,7 @@ class ObservationPerturbationEnv(gym.Env):
 
     def step(self, action):
         delta = np.clip(np.asarray(action, dtype=float), -1.0, 1.0) * self.epsilon
-        perturbed = self._true_obs + delta
+        perturbed = apply_perturbation(self._true_obs, delta, self.target_key)
         victim_action = self.victim.predict(perturbed)
         obs, reward, terminated, truncated, info = self.env.step(victim_action)
         self._true_obs = obs
@@ -128,13 +171,16 @@ class _PerturbedPolicy:
     every other test category.
     """
 
-    def __init__(self, victim: Policy, adversary: Adversary) -> None:
+    def __init__(self, victim: Policy, adversary: Adversary,
+                 target_key: str = DEFAULT_TARGET_KEY) -> None:
         self.victim = victim
         self.adversary = adversary
+        self.target_key = target_key
         self.name = f"{victim.name}+{adversary.name}"
 
-    def predict(self, obs: np.ndarray) -> np.ndarray:
-        return self.victim.predict(obs + self.adversary.perturb(obs))
+    def predict(self, obs) -> np.ndarray:
+        delta = self.adversary.perturb(_target_array(obs, self.target_key))
+        return self.victim.predict(apply_perturbation(obs, delta, self.target_key))
 
 
 @dataclass
@@ -201,6 +247,7 @@ def run_adversarial_test(
     n_workers: int = 1,
     env_factory: Callable[[], gym.Env] | None = None,
     ci_level: float = 0.95,
+    target_key: str = DEFAULT_TARGET_KEY,
 ) -> AdversarialResult:
     """Measure worst-case success rate under bounded observation attack.
 
@@ -209,15 +256,12 @@ def run_adversarial_test(
     success rate to stay at or above ``min_success_rate``. Pass
     ``n_workers > 1`` with an ``env_factory`` to evaluate the fixed-N
     rollouts in parallel (the adversary and victim stay in the main
-    process, so results are identical to the serial path).
+    process, so results are identical to the serial path). Dict
+    observations are perturbed only on ``target_key`` (the sensed state).
     """
-    if not isinstance(env.observation_space, gym.spaces.Box):
-        raise TypeError(
-            f"adversarial testing currently supports Box observation spaces "
-            f"only; {getattr(env, 'spec', None) and env.spec.id or 'env'} has "
-            f"{type(env.observation_space).__name__}. Dict-obs perturbation "
-            "is not implemented yet — drop the adversarial section for this env."
-        )
+    # Validate the obs space is perturbable (Box, or Dict with a Box
+    # target key); raises a clear TypeError otherwise.
+    perturbable_shape(env.observation_space, target_key)
     if adversary is None:
         adversary = RandomAdversary(epsilon, seed=base_seed)
     if seeds is None:
@@ -234,7 +278,7 @@ def run_adversarial_test(
         return run_rollouts(pol, env, n_episodes, success_fn, seeds=seeds, record_infos=False)
 
     clean = rollouts(victim)
-    attacked = rollouts(_PerturbedPolicy(victim, adversary))
+    attacked = rollouts(_PerturbedPolicy(victim, adversary, target_key))
 
     attacked_successes = sum(1 for s in attacked.successes if s)
     ci_lower, ci_upper = clopper_pearson(attacked_successes, n_episodes, ci_level)
@@ -262,6 +306,7 @@ def train_adversary(
     timesteps: int = 20_000,
     seed: int = 0,
     verbose: int = 0,
+    target_key: str = DEFAULT_TARGET_KEY,
 ):
     """Train a PPO adversary against the frozen victim.
 
@@ -271,9 +316,15 @@ def train_adversary(
     """
     from stable_baselines3 import PPO
 
-    attack_env = ObservationPerturbationEnv(env, victim, epsilon)
+    attack_env = ObservationPerturbationEnv(env, victim, epsilon, target_key=target_key)
+    # the adversary observes the full (possibly Dict) observation
+    policy_type = (
+        "MultiInputPolicy"
+        if isinstance(attack_env.observation_space, gym.spaces.Dict)
+        else "MlpPolicy"
+    )
     model = PPO(
-        "MlpPolicy",
+        policy_type,
         attack_env,
         seed=seed,
         policy_kwargs={"net_arch": [32, 32]},
@@ -295,13 +346,17 @@ def get_adversary(
     seed: int = 0,
     train: bool = True,
     log: Callable[[str], None] = print,
+    target_key: str = DEFAULT_TARGET_KEY,
 ):
     """Return (adversary, notes): the trained PPO adversary, or the random
     baseline with an explanatory note if training is disabled or fails."""
     if not train:
         return RandomAdversary(epsilon, seed=seed), "learned adversary disabled; random baseline"
     try:
-        return train_adversary(victim, env, epsilon, timesteps=timesteps, seed=seed), ""
+        adversary = train_adversary(
+            victim, env, epsilon, timesteps=timesteps, seed=seed, target_key=target_key
+        )
+        return adversary, ""
     except Exception as exc:  # deliberate blanket catch: never lose the category
         log(f"[cotter] PPO adversary training failed ({exc!r}); falling back to random baseline")
         return (
