@@ -1,0 +1,51 @@
+# Locomotion demo: PPO on Ant-v5.
+#
+#   poetry run cotter run \
+#       --policy artifacts/victim_ant.zip \
+#       --config examples/ant.yaml
+#
+# Ant has no goal flag, so success is a return threshold (survived and
+# made positive progress). Safety limits are set at ~2-3x the trained
+# victim's observed nominal joint velocities and actuator forces.
+
+env: Ant-v5
+algo: PPO
+base_seed: 0
+
+# Locomotion success = the ant actually moved forward. Total episode
+# reward is a poor signal on Ant (its per-step survival bonus rewards
+# standing still), so success is measured on forward displacement.
+success:
+  type: min_info
+  key: x_position
+  value: 1.0
+
+performance:
+  p0: 0.50
+  p1: 0.80
+  alpha: 0.05
+  beta: 0.05
+  n_max: 40
+
+safety:
+  n_episodes: 20
+  limits:
+    cotter/joint_velocities: 40.0    # ~2.8x observed max (~14 rad/s)
+    cotter/actuator_forces: 3.0      # ~3x observed max (~1.0 N·m, clipped)
+    cotter/contact_count: 12.0       # generous cap on simultaneous contacts
+
+regression:
+  baseline: ../artifacts/victim_ant_randominit.zip   # random init of same arch
+  n_pairs: 20
+  alpha: 0.05
+  metric: x_position   # compare forward distance, not raw reward
+
+adversarial:
+  epsilon: 1.0            # L-inf perturbation on the raw observation
+  n_episodes: 20
+  min_success_rate: 0.5
+  train: true
+  timesteps: 60000
+  max_seconds: 360        # time-box the PPO adversary; random fallback on failure
+
+report: ../artifacts/ant_report.json
