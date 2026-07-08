@@ -146,7 +146,10 @@ def load_policy(
                     "loading an SB3 .zip requires the algorithm class, e.g. "
                     "load_policy(path, env, algo=PPO)"
                 )
-            policy = SB3Policy(algo.load(path, device="cpu"), name=name or path.stem)
+            # Pass the env: models trained with HerReplayBuffer (SAC+HER)
+            # require it at load time; harmless for other algorithms.
+            model = algo.load(path, env=env, device="cpu")
+            policy = SB3Policy(model, name=name or path.stem)
         elif path.suffix in (".pt", ".pth"):
             try:
                 module = torch.jit.load(path, map_location="cpu")
