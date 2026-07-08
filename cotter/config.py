@@ -91,6 +91,7 @@ class RunConfig:
     success: dict
     algo: str = "PPO"
     base_seed: int = 0
+    backend: str = "gymnasium"
     performance: PerformanceConfig | None = None
     safety: SafetyConfig | None = None
     regression: RegressionConfig | None = None
@@ -102,7 +103,7 @@ class RunConfig:
 
 
 _KNOWN_TOP_KEYS = {
-    "env", "algo", "base_seed", "success",
+    "env", "algo", "base_seed", "backend", "success",
     "performance", "safety", "regression", "adversarial", "report",
 }
 
@@ -168,6 +169,7 @@ def parse_config(data: dict, config_dir: Path | None = None) -> RunConfig:
         success=dict(data["success"]),
         algo=str(data.get("algo", "PPO")),
         base_seed=int(data.get("base_seed", 0)),
+        backend=str(data.get("backend", "gymnasium")),
         performance=_section(data, "performance", PerformanceConfig),
         safety=_section(data, "safety", SafetyConfig, limits=_parse_limits),
         regression=_section(data, "regression", RegressionConfig, baseline=resolve),

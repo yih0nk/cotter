@@ -43,6 +43,14 @@ class TestParseConfig:
         assert cfg.adversarial is None
         assert cfg.report is None
         assert cfg.algo == "PPO"
+        assert cfg.backend == "gymnasium"  # default backend
+
+    def test_backend_override(self):
+        cfg = parse_config({
+            "env": "X-v1", "backend": "isaac-sim",
+            "success": {"type": "min_return", "value": 1},
+        })
+        assert cfg.backend == "isaac-sim"
 
     def test_relative_paths_resolve_against_config_dir(self):
         cfg = parse_config(dict(FULL), config_dir=Path("/cfg/dir"))
