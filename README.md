@@ -22,7 +22,14 @@ the stack).
 
 ## Install
 
-Requires Python 3.11 and [Poetry](https://python-poetry.org/).
+Requires Python 3.11. From PyPI (the distribution is published as
+`cotterbot`; the import name, CLI, and project are all still `cotter`):
+
+```sh
+pip install cotterbot
+```
+
+Or from source with [Poetry](https://python-poetry.org/):
 
 ```sh
 git clone https://github.com/yih0nk/cotter.git
