@@ -32,6 +32,20 @@ class TestInfoFlag:
             fn(0.0, 5, True, False, {"other": 1})
 
 
+class TestMinInfo:
+    def test_threshold_on_info_value(self):
+        fn = make_success_fn({"type": "min_info", "key": "x_position", "value": 1.0})
+        assert fn(0.0, 100, False, True, {"x_position": 5.2})
+        assert fn(0.0, 100, False, True, {"x_position": 1.0})
+        assert not fn(0.0, 100, False, True, {"x_position": 0.3})
+        assert not fn(0.0, 100, False, True, {"x_position": -2.0})
+
+    def test_missing_key_raises(self):
+        fn = make_success_fn({"type": "min_info", "key": "x_position", "value": 1.0})
+        with pytest.raises(KeyError, match="x_position"):
+            fn(0.0, 5, False, True, {"other": 1})
+
+
 class TestValidation:
     @pytest.mark.parametrize(
         "spec",

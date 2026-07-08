@@ -17,7 +17,7 @@ from typing import Mapping
 
 from cotter.runner import SuccessFn
 
-CRITERION_TYPES = ("min_length", "min_return", "info_flag")
+CRITERION_TYPES = ("min_length", "min_return", "info_flag", "min_info")
 
 
 def make_success_fn(spec: Mapping) -> SuccessFn:
@@ -28,6 +28,11 @@ def make_success_fn(spec: Mapping) -> SuccessFn:
         make_success_fn({"type": "min_length", "value": 1000})
         make_success_fn({"type": "min_return", "value": 950.0})
         make_success_fn({"type": "info_flag", "key": "is_success"})
+        make_success_fn({"type": "min_info", "key": "x_position", "value": 1.0})
+
+    ``min_info`` succeeds when a numeric final-step info value reaches a
+    threshold — e.g. forward displacement for a locomotion policy, which
+    is the task metric rather than raw episode reward.
     """
     if "type" not in spec:
         raise ValueError(
@@ -59,6 +64,20 @@ def make_success_fn(spec: Mapping) -> SuccessFn:
                     f"only contains {sorted(final_info.keys())}"
                 )
             return bool(final_info[key])
+
+    elif kind == "min_info":
+        key = spec.get("key")
+        if not isinstance(key, str) or not key:
+            raise ValueError(f"success criterion 'min_info' needs a string 'key'; got {dict(spec)}")
+        threshold = _require_number(spec, "value", kind)
+
+        def success_fn(total_reward, length, terminated, truncated, final_info):
+            if key not in final_info:
+                raise KeyError(
+                    f"success criterion reads info['{key}'] but the final step info "
+                    f"only contains {sorted(final_info.keys())}"
+                )
+            return float(final_info[key]) >= threshold
 
     else:
         raise ValueError(f"unknown success criterion type '{kind}' (expected one of {CRITERION_TYPES})")
