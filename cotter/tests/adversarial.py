@@ -40,42 +40,55 @@ from cotter.runner import (
 class Adversary(Protocol):
     name: str
 
-    def perturb(self, obs: np.ndarray) -> np.ndarray:
-        """Return delta with ||delta||_inf <= epsilon, same shape as obs."""
+    def perturb(self, obs) -> np.ndarray:
+        """Given the full observation, return a delta for the perturbable
+        (target) array, with ``||delta||_inf <= epsilon``."""
         ...
+
+
+def _target_array(obs, target_key: str):
+    return obs[target_key] if isinstance(obs, dict) else obs
 
 
 class RandomAdversary:
     """Uniform i.i.d. noise within the L-inf budget. The guaranteed floor."""
 
-    def __init__(self, epsilon: float, seed: int = 0) -> None:
+    def __init__(self, epsilon: float, seed: int = 0, target_key: str = "observation") -> None:
         self.epsilon = epsilon
         self.name = "random"
+        self.target_key = target_key
         self._rng = np.random.default_rng(seed)
 
-    def perturb(self, obs: np.ndarray) -> np.ndarray:
-        return self._rng.uniform(-self.epsilon, self.epsilon, size=np.shape(obs))
+    def perturb(self, obs) -> np.ndarray:
+        arr = _target_array(obs, self.target_key)
+        return self._rng.uniform(-self.epsilon, self.epsilon, size=np.shape(arr))
 
 
 class NullAdversary:
     """Zero perturbation; useful for sanity checks."""
 
-    def __init__(self) -> None:
+    def __init__(self, target_key: str = "observation") -> None:
         self.name = "null"
+        self.target_key = target_key
 
-    def perturb(self, obs: np.ndarray) -> np.ndarray:
-        return np.zeros_like(np.asarray(obs, dtype=float))
+    def perturb(self, obs) -> np.ndarray:
+        return np.zeros_like(np.asarray(_target_array(obs, self.target_key), dtype=float))
 
 
 class PPOAdversary:
-    """A trained SB3 model driving the perturbation, scaled into the budget."""
+    """A trained SB3 model driving the perturbation, scaled into the budget.
+
+    The model observes the full (possibly Dict) observation and outputs a
+    perturbation for the target array, so ``perturb`` is given the whole
+    observation.
+    """
 
     def __init__(self, model, epsilon: float) -> None:
         self.name = "ppo"
         self.epsilon = epsilon
         self.model = model
 
-    def perturb(self, obs: np.ndarray) -> np.ndarray:
+    def perturb(self, obs) -> np.ndarray:
         action, _ = self.model.predict(obs, deterministic=True)
         return np.clip(np.asarray(action, dtype=float), -1.0, 1.0) * self.epsilon
 
@@ -114,10 +127,6 @@ def apply_perturbation(obs, delta, target_key: str = DEFAULT_TARGET_KEY):
         perturbed[target_key] = obs[target_key] + delta
         return perturbed
     return obs + delta
-
-
-def _target_array(obs, target_key: str = DEFAULT_TARGET_KEY):
-    return obs[target_key] if isinstance(obs, dict) else obs
 
 
 class ObservationPerturbationEnv(gym.Env):
@@ -181,7 +190,9 @@ class _PerturbedPolicy:
         self.name = f"{victim.name}+{adversary.name}"
 
     def predict(self, obs) -> np.ndarray:
-        delta = self.adversary.perturb(_target_array(obs, self.target_key))
+        # the adversary sees the full observation and returns a delta for
+        # the target array; apply it to what the victim then perceives
+        delta = self.adversary.perturb(obs)
         return self.victim.predict(apply_perturbation(obs, delta, self.target_key))
 
 
@@ -265,7 +276,7 @@ def run_adversarial_test(
     # target key); raises a clear TypeError otherwise.
     perturbable_shape(env.observation_space, target_key)
     if adversary is None:
-        adversary = RandomAdversary(epsilon, seed=base_seed)
+        adversary = RandomAdversary(epsilon, seed=base_seed, target_key=target_key)
     if seeds is None:
         seeds = make_seed_sequence(n_episodes, base_seed)
 
@@ -372,7 +383,7 @@ def get_adversary(
     """Return (adversary, notes): the trained PPO adversary, or the random
     baseline with an explanatory note if training is disabled or fails."""
     if not train:
-        return RandomAdversary(epsilon, seed=seed), "learned adversary disabled; random baseline"
+        return RandomAdversary(epsilon, seed=seed, target_key=target_key), "learned adversary disabled; random baseline"
     try:
         adversary = train_adversary(
             victim, env, epsilon, timesteps=timesteps, seed=seed,
@@ -382,6 +393,6 @@ def get_adversary(
     except Exception as exc:  # deliberate blanket catch: never lose the category
         log(f"[cotter] PPO adversary training failed ({exc!r}); falling back to random baseline")
         return (
-            RandomAdversary(epsilon, seed=seed),
+            RandomAdversary(epsilon, seed=seed, target_key=target_key),
             f"PPO adversary training failed ({type(exc).__name__}); random baseline used",
         )

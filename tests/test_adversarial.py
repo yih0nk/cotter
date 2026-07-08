@@ -146,6 +146,29 @@ class TestRunAdversarialTest:
         assert 0.0 <= res.adversarial_success_rate <= 1.0
         fetch.close()
 
+    def test_dict_obs_trained_ppo_adversary_runs(self):
+        # A PPO adversary on a Dict env observes the full dict and perturbs
+        # the 'observation' key; regression guard against passing only the
+        # sub-array to the adversary's model.
+        from stable_baselines3 import PPO
+
+        from cotter.envs.registry import make_env_by_id
+        from cotter.tests.adversarial import train_adversary
+
+        fetch = make_env_by_id("FetchReachDense-v4")
+        victim = load_policy(
+            PPO("MultiInputPolicy", fetch, n_steps=32, verbose=0, device="cpu"),
+            fetch,
+        )
+        adv = train_adversary(victim, fetch, epsilon=0.05, timesteps=256, seed=0)
+        assert adv.name == "ppo"
+        res = run_adversarial_test(
+            victim, fetch, lambda *a: True, epsilon=0.05, n_episodes=2,
+            adversary=adv, min_success_rate=0.0,
+        )
+        assert 0.0 <= res.adversarial_success_rate <= 1.0
+        fetch.close()
+
     def test_dict_obs_bad_target_key_rejected(self):
         from stable_baselines3 import PPO
 
