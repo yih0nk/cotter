@@ -64,6 +64,13 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("--env", default=None, help="Gymnasium env id (overrides config)")
     compare.add_argument("--quiet", action="store_true", help="suppress progress output")
 
+    list_envs = subparsers.add_parser(
+        "list-envs", help="list available Gymnasium env ids grouped by package"
+    )
+    list_envs.add_argument(
+        "--filter", default=None, help="only show env ids containing this substring"
+    )
+
     zoo = subparsers.add_parser("zoo", help="inspect the cached adversary zoo")
     zoo.add_argument("--root", type=Path, default=None, help="zoo root (default ~/.cotter/zoo)")
     zoo_sub = zoo.add_subparsers(dest="zoo_command", required=True)
@@ -127,6 +134,42 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return 1 if regressed else 0
 
 
+def cmd_list_envs(args: argparse.Namespace) -> int:
+    from collections import defaultdict
+
+    import gymnasium as gym
+
+    from cotter.envs.registry import register_extension_envs
+
+    register_extension_envs()  # make gymnasium-robotics ids visible
+
+    groups: dict[str, set[str]] = defaultdict(set)
+    for env_id, spec in gym.registry.items():
+        if args.filter and args.filter.lower() not in env_id.lower():
+            continue
+        entry = spec.entry_point
+        if isinstance(entry, str):
+            package = entry.split(":", 1)[0].split(".", 1)[0]
+        elif entry is not None:
+            package = getattr(entry, "__module__", "unknown").split(".", 1)[0]
+        else:
+            package = "unknown"
+        groups[package].add(env_id)
+
+    total = sum(len(ids) for ids in groups.values())
+    scope = f" matching '{args.filter}'" if args.filter else ""
+    if total == 0:
+        print(f"no envs{scope}")
+        return 0
+    print(f"{total} env id(s){scope}:")
+    for package in sorted(groups):
+        ids = sorted(groups[package])
+        print(f"\n{package} ({len(ids)}):")
+        for env_id in ids:
+            print(f"  {env_id}")
+    return 0
+
+
 def cmd_zoo(args: argparse.Namespace) -> int:
     from cotter.zoo import AdversaryZoo
 
@@ -169,6 +212,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_compare(args)
     if args.command == "zoo":
         return cmd_zoo(args)
+    if args.command == "list-envs":
+        return cmd_list_envs(args)
     raise AssertionError(f"unhandled command {args.command}")  # pragma: no cover
 
 
