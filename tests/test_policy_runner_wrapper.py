@@ -159,3 +159,33 @@ class TestRunner:
         policy = load_policy(ZeroPolicy(), env)
         with pytest.raises(ValueError, match="seeds"):
             run_rollouts(policy, env, 5, survival_success, seeds=[1, 2])
+
+
+class TestMetricValues:
+    def _rollout_set(self, record_infos):
+        from cotter.runner import EpisodeRecord, RolloutSet
+
+        recs = [
+            EpisodeRecord(
+                seed=i, length=3, total_reward=float(10 * i),
+                terminated=True, truncated=False, success=True,
+                step_infos=[{"x_position": float(i)}] if record_infos else [],
+            )
+            for i in (1, 2, 3)
+        ]
+        return RolloutSet(records=recs)
+
+    def test_return_metric(self):
+        rs = self._rollout_set(record_infos=False)
+        assert rs.metric_values("return") == [10.0, 20.0, 30.0]
+
+    def test_info_metric_reads_final_info(self):
+        rs = self._rollout_set(record_infos=True)
+        assert rs.metric_values("x_position") == [1.0, 2.0, 3.0]
+
+    def test_info_metric_without_recorded_infos_raises(self):
+        import pytest
+
+        rs = self._rollout_set(record_infos=False)
+        with pytest.raises(KeyError, match="record_infos=True"):
+            rs.metric_values("x_position")

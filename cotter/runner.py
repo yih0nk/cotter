@@ -70,6 +70,28 @@ class RolloutSet:
         """Per-trial step-info sequences, the input to evaluate_safety."""
         return [r.step_infos for r in self.records]
 
+    def metric_values(self, metric: str = "return") -> list[float]:
+        """Per-episode values of a regression metric.
+
+        ``"return"`` gives total episode reward; any other name reads that
+        key from each episode's final-step info (e.g. ``"x_position"`` for
+        locomotion distance), which requires rollouts recorded with
+        ``record_infos=True``.
+        """
+        if metric == "return":
+            return self.returns
+        values = []
+        for record in self.records:
+            final = record.final_info
+            if metric not in final:
+                raise KeyError(
+                    f"regression metric '{metric}' not found in the final step "
+                    f"info (keys: {sorted(final.keys())}); rollouts must be run "
+                    "with record_infos=True to use an info-based metric"
+                )
+            values.append(float(final[metric]))
+        return values
+
 
 def rollout_one(
     policy: Policy,

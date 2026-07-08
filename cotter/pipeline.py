@@ -165,15 +165,19 @@ def run_from_config(
         log(f"[cotter] regression: vs baseline {r.baseline} on {r.n_pairs} paired seeds")
         baseline = load_policy(r.baseline, env, algo=algo, name=f"baseline:{r.baseline.stem}")
         seeds = make_seed_sequence(r.n_pairs, cfg.base_seed + _REGRESSION_SEED)
-        base_rs = dispatch(baseline, r.n_pairs, seeds=seeds, record_infos=False, n_workers=r.n_workers)
-        cand_rs = dispatch(policy, r.n_pairs, seeds=seeds, record_infos=False, n_workers=r.n_workers)
+        # info-based metrics need per-episode final info recorded
+        record = r.metric != "return"
+        base_rs = dispatch(baseline, r.n_pairs, seeds=seeds, record_infos=record, n_workers=r.n_workers)
+        cand_rs = dispatch(policy, r.n_pairs, seeds=seeds, record_infos=record, n_workers=r.n_workers)
         # baseline vs candidate: the CLI policy is the candidate
         mcnemar = mcnemar_exact(base_rs.successes, cand_rs.successes, alpha=r.alpha)
         report.add_regression(mcnemar, name="success_mcnemar")
-        wilcoxon = wilcoxon_regression(base_rs.returns, cand_rs.returns, alpha=r.alpha)
-        report.add_regression(wilcoxon, name="return_wilcoxon")
+        wilcoxon = wilcoxon_regression(
+            base_rs.metric_values(r.metric), cand_rs.metric_values(r.metric), alpha=r.alpha
+        )
+        report.add_regression(wilcoxon, name=f"{r.metric}_wilcoxon")
         log(f"[cotter]   baseline {base_rs.success_rate:.0%} vs candidate "
-            f"{cand_rs.success_rate:.0%}")
+            f"{cand_rs.success_rate:.0%} (metric: {r.metric})")
         log(f"[cotter]   => McNemar {mcnemar.decision.value} (p={mcnemar.p_value:.3g}), "
             f"Wilcoxon {wilcoxon.decision.value} (p={wilcoxon.p_value:.3g})")
 

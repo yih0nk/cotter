@@ -71,6 +71,7 @@ class RegressionConfig:
     n_pairs: int = 30
     alpha: float = 0.05
     n_workers: int = 1  # parallel rollout workers; 1 = serial
+    metric: str = "return"  # continuous metric for Wilcoxon: "return" or an info key
 
 
 @dataclass
