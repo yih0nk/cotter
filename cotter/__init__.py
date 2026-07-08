@@ -54,6 +54,12 @@ from cotter.tests.safety import (
     check_step,
     evaluate_safety,
 )
+from cotter.backends import (
+    BackendFactory,
+    BackendNotAvailableError,
+    GymnasiumBackend,
+    IsaacSimBackend,
+)
 from cotter.stats import clopper_pearson
 from cotter.tests.sprt import SPRT, SPRTDecision, SPRTResult, run_sprt
 
@@ -88,6 +94,11 @@ __all__ = [
     "run_sprt",
     # stats
     "clopper_pearson",
+    # backends
+    "BackendFactory",
+    "BackendNotAvailableError",
+    "GymnasiumBackend",
+    "IsaacSimBackend",
     # safety
     "SafetyLimit",
     "SafetyViolation",

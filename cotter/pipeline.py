@@ -15,9 +15,9 @@ from typing import Callable
 
 import gymnasium as gym
 
+from cotter.backends import BackendFactory
 from cotter.config import RunConfig
 from cotter.envs.factory import WrappedEnvFactory
-from cotter.envs.registry import make_env_by_id
 from cotter.envs.wrapper import CotterWrapper
 from cotter.policy import Policy, load_policy
 from cotter.report import TestReport
@@ -47,14 +47,17 @@ def resolve_algo(name: str):
     return algo
 
 
-def make_env(env_id: str, log: Callable[[str], None] = print) -> gym.Env:
-    """Create the test environment, instrumented when MuJoCo-backed."""
-    env = make_env_by_id(env_id)
-    try:
-        return CotterWrapper(env)
-    except TypeError:
+def make_env(env_id: str, backend: str = "gymnasium", log: Callable[[str], None] = print) -> gym.Env:
+    """Create the test environment via the named backend.
+
+    The env is instrumented with :class:`CotterWrapper` when the backend
+    produces a MuJoCo-backed env; otherwise safety quantities are
+    unavailable and a note is logged.
+    """
+    env = BackendFactory.from_name(backend).make_env(env_id)
+    if not isinstance(env, CotterWrapper):
         log(f"[cotter] {env_id} is not MuJoCo-backed; safety quantities unavailable")
-        return env
+    return env
 
 
 def _obtain_adversary(policy_path, policy, env, cfg, adv_cfg, log):
@@ -95,7 +98,7 @@ def run_from_config(
     cfg: RunConfig,
     log: Callable[[str], None] = print,
 ) -> TestReport:
-    env = make_env(cfg.env, log=log)
+    env = make_env(cfg.env, backend=cfg.backend, log=log)
     if cfg.safety is not None and not isinstance(env, CotterWrapper):
         raise ValueError(
             f"config declares safety limits but {cfg.env} is not MuJoCo-backed, "

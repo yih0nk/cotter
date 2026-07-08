@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from cotter.backends import BackendFactory, GymnasiumBackend
 from cotter.config import parse_config
 from cotter.pipeline import make_env, resolve_algo, run_from_config
 
@@ -42,6 +43,28 @@ class TestMakeEnv:
         assert not isinstance(env, CotterWrapper)
         assert any("not MuJoCo-backed" in m for m in messages)
         env.close()
+
+    def test_make_env_routes_through_named_backend(self):
+        # A test-double backend proves make_env dispatches via from_name.
+        calls = []
+
+        class SpyBackend(BackendFactory):
+            backend_name = "spy-backend"
+
+            def make_env(self, env_id):
+                calls.append(env_id)
+                return GymnasiumBackend().make_env(env_id)
+
+        try:
+            env = make_env("InvertedPendulum-v5", backend="spy-backend", log=lambda m: None)
+            assert calls == ["InvertedPendulum-v5"]
+            env.close()
+        finally:
+            BackendFactory._registry.pop("spy-backend", None)
+
+    def test_unknown_backend_rejected(self):
+        with pytest.raises(ValueError, match="unknown backend"):
+            make_env("InvertedPendulum-v5", backend="nope", log=lambda m: None)
 
 
 @pytest.mark.skipif(not VICTIM.exists(), reason="victim artifact missing")
