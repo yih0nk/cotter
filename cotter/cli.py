@@ -63,6 +63,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     compare.add_argument("--env", default=None, help="Gymnasium env id (overrides config)")
     compare.add_argument("--quiet", action="store_true", help="suppress progress output")
+
+    zoo = subparsers.add_parser("zoo", help="inspect the cached adversary zoo")
+    zoo.add_argument("--root", type=Path, default=None, help="zoo root (default ~/.cotter/zoo)")
+    zoo_sub = zoo.add_subparsers(dest="zoo_command", required=True)
+    zoo_list = zoo_sub.add_parser("list", help="list cached adversaries")
+    zoo_list.add_argument("--env", default=None, help="filter by env id")
+    zoo_sub.add_parser("prune", help="remove entries whose artifact files are missing")
     return parser
 
 
@@ -120,12 +127,48 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return 1 if regressed else 0
 
 
+def cmd_zoo(args: argparse.Namespace) -> int:
+    from cotter.zoo import AdversaryZoo
+
+    zoo = AdversaryZoo(args.root) if args.root else AdversaryZoo()
+
+    if args.zoo_command == "list":
+        entries = zoo.entries(args.env)
+        scope = f" for env '{args.env}'" if args.env else ""
+        if not entries:
+            print(f"no cached adversaries{scope} (zoo root: {zoo.root})")
+            return 0
+        print(f"{len(entries)} cached adversar{'y' if len(entries) == 1 else 'ies'}"
+              f"{scope} (zoo root: {zoo.root}):")
+        for e in entries:
+            missing = "" if (zoo.root / e.path).exists() else "  [MISSING ARTIFACT]"
+            print(f"  {e.env_id}  eps={e.epsilon:g}  victim={e.victim_hash}  "
+                  f"{e.algo}  {e.created_at}{missing}")
+            print(f"      {e.path}")
+        return 0
+
+    if args.zoo_command == "prune":
+        removed = zoo.prune()
+        if not removed:
+            print(f"nothing to prune (zoo root: {zoo.root})")
+            return 0
+        print(f"pruned {len(removed)} entr{'y' if len(removed) == 1 else 'ies'} "
+              f"with missing artifacts:")
+        for e in removed:
+            print(f"  {e.env_id}  eps={e.epsilon:g}  victim={e.victim_hash}")
+        return 0
+
+    raise AssertionError(f"unhandled zoo command {args.zoo_command}")  # pragma: no cover
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "run":
         return cmd_run(args)
     if args.command == "compare":
         return cmd_compare(args)
+    if args.command == "zoo":
+        return cmd_zoo(args)
     raise AssertionError(f"unhandled command {args.command}")  # pragma: no cover
 
 
