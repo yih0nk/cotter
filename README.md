@@ -29,6 +29,14 @@ Requires Python 3.11. From PyPI (the distribution is published as
 pip install cotterbot
 ```
 
+> **Note:** on some systems the `cotter` binary lands outside your PATH (pip
+> will warn you with the exact directory). Either add that directory to PATH,
+> or invoke via `python -m cotter` instead:
+>
+> ```sh
+> python -m cotter run --policy policy.zip --config run.yaml
+> ```
+
 Or from source with [Poetry](https://python-poetry.org/):
 
 ```sh
