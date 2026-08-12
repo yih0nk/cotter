@@ -145,6 +145,19 @@ class TestReport:
         path.write_text(json.dumps(self.to_dict(), indent=2, cls=_NumpyEncoder) + "\n")
         return path
 
+    def to_html(self, path: str | Path) -> Path:
+        """Write a self-contained, shareable HTML report (free tier).
+
+        The rendering lives in :mod:`cotter.render`; imported lazily so
+        the report container stays dependency-light for JSON-only use.
+        """
+        from cotter.render import render_html
+
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(render_html(self))
+        return path
+
     def summary(self) -> str:
         width = 78
         mark = {True: "PASS", False: "FAIL", None: "INFO"}
