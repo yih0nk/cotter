@@ -43,7 +43,7 @@ Or from source with [Poetry](https://python-poetry.org/):
 git clone https://github.com/yih0nk/cotter.git
 cd cotter
 poetry install
-poetry run pytest   # 213 tests, unit + real-MuJoCo integration
+poetry run pytest   # 241 tests, unit + real-MuJoCo integration
 ```
 
 ## Quickstart (CLI)
@@ -89,6 +89,28 @@ hence p = 1.) The config file schema is documented in
 confidence interval (SPRT and adversarial results), and regression
 results carry an effect size — the discordant-pair odds ratio for
 McNemar, the rank-biserial correlation for Wilcoxon.
+
+### Reports (JSON + HTML)
+
+Every run prints a console summary and can write two artifacts:
+
+- **JSON** (`report:` in the config, or `--report`) — the machine-readable
+  evidence, one object per category with the full statistics.
+- **HTML** (`report_html:` in the config, or `--report-html`) — a single
+  self-contained page you can open in a browser, drop into a pull request,
+  or attach to a demo. No external assets, no JavaScript, adapts to the
+  viewer's light/dark theme.
+
+```sh
+poetry run cotter run \
+    --policy artifacts/victim_ppo_inverted_pendulum.zip \
+    --config examples/inverted_pendulum.yaml \
+    --report report.json --report-html report.html
+```
+
+The HTML page is the *free* counterpart to the paid compliance layer: the
+open engine renders the pass/fail evidence into something shareable; the
+licensed layer renders it into a signed, regulator-ready technical file.
 
 ### Comparing two policy versions
 
@@ -171,13 +193,14 @@ safe = evaluate_safety(rollouts.episode_infos, [
 
 adv = run_adversarial_test(policy, env, success, epsilon=0.07, n_episodes=20)
 
-# 4. Aggregate into a report (console summary + JSON artifact).
+# 4. Aggregate into a report (console summary + JSON + HTML artifacts).
 report = TestReport(policy_name="my_policy", env_id="InvertedPendulum-v5")
 report.add_sprt(perf)
 report.add_safety(safe)
 report.add_adversarial(adv)
 print(report.summary())
 report.to_json("report.json")
+report.to_html("report.html")   # self-contained, shareable page
 ```
 
 ## Demo
@@ -367,6 +390,7 @@ cotter/
 │   ├── registry.py      # resolves gymnasium-robotics (and other) extension envs
 │   └── factory.py       # picklable env factory for parallel rollouts
 ├── report.py            # TestReport: console summary + JSON (results container only)
+├── render.py            # self-contained HTML rendering of a TestReport (free tier)
 ├── zoo/                 # adversary registry keyed by (env, victim, epsilon)
 ├── compliance/          # paid-tier regulatory document stub (license required)
 └── tests/
