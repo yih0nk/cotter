@@ -91,3 +91,14 @@ class TestRunCommand:
         ])
         assert rc == 0
         assert report_path.exists()
+
+    def test_report_html_override(self, tmp_path):
+        cfg = write_config(tmp_path, MINIMAL)
+        html_path = tmp_path / "out" / "r.html"
+        rc = main([
+            "run", "--policy", str(VICTIM), "--config", str(cfg),
+            "--report-html", str(html_path), "--quiet",
+        ])
+        assert rc == 0
+        assert html_path.exists()
+        assert html_path.read_text().startswith("<!doctype html>")

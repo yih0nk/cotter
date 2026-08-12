@@ -211,4 +211,8 @@ def run_from_config(
         path = report.to_json(cfg.report)
         log(f"[cotter] JSON report written to {path}")
 
+    if cfg.report_html is not None:
+        path = report.to_html(cfg.report_html)
+        log(f"[cotter] HTML report written to {path}")
+
     return report

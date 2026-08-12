@@ -48,6 +48,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="JSON report path (overrides the config's 'report')",
     )
     run.add_argument(
+        "--report-html", type=Path, default=None,
+        help="HTML report path (overrides the config's 'report_html')",
+    )
+    run.add_argument(
         "--quiet", action="store_true", help="suppress progress output"
     )
 
@@ -62,6 +66,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="YAML config supplying env, success, base_seed, and regression params",
     )
     compare.add_argument("--env", default=None, help="Gymnasium env id (overrides config)")
+    compare.add_argument(
+        "--report-html", type=Path, default=None,
+        help="write an HTML report of the comparison to this path",
+    )
     compare.add_argument("--quiet", action="store_true", help="suppress progress output")
 
     list_envs = subparsers.add_parser(
@@ -91,6 +99,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         cfg.env = args.env
     if args.report is not None:
         cfg.report = args.report
+    if args.report_html is not None:
+        cfg.report_html = args.report_html
 
     try:
         report = run_from_config(args.policy, cfg, log=log)
@@ -121,6 +131,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
         algo=cfg.algo,
         base_seed=cfg.base_seed,
         regression=reg,
+        report_html=args.report_html,
     )
 
     try:

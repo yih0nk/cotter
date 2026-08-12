@@ -16,6 +16,7 @@ FULL = {
     "regression": {"baseline": "base.zip", "n_pairs": 30},
     "adversarial": {"epsilon": 0.07, "train": False},
     "report": "out/report.json",
+    "report_html": "out/report.html",
 }
 
 
@@ -33,6 +34,7 @@ class TestParseConfig:
         assert cfg.adversarial.train is False
         assert cfg.adversarial.timesteps == 150_000  # default preserved
         assert cfg.report == Path("out/report.json")
+        assert cfg.report_html == Path("out/report.html")
         assert cfg.success_fn()(0.0, 1000, False, True, {})
 
     def test_minimal_config_categories_none(self):
@@ -42,6 +44,7 @@ class TestParseConfig:
         assert cfg.regression is None
         assert cfg.adversarial is None
         assert cfg.report is None
+        assert cfg.report_html is None
         assert cfg.algo == "PPO"
         assert cfg.backend == "gymnasium"  # default backend
 
@@ -56,6 +59,7 @@ class TestParseConfig:
         cfg = parse_config(dict(FULL), config_dir=Path("/cfg/dir"))
         assert cfg.regression.baseline == Path("/cfg/dir/base.zip")
         assert cfg.report == Path("/cfg/dir/out/report.json")
+        assert cfg.report_html == Path("/cfg/dir/out/report.html")
 
     @pytest.mark.parametrize(
         ("mutate", "match"),
