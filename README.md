@@ -124,6 +124,10 @@ poetry run cotter compare \
     --config examples/inverted_pendulum.yaml
 ```
 
+Like `run`, it accepts `--report` (JSON) and `--report-html` to write the
+comparison result to disk — handy for archiving the artifact or feeding a
+PR comment.
+
 ### Parallel rollouts
 
 Safety, regression, and fixed-N adversarial evaluation parallelize across

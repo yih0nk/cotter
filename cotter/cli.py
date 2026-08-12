@@ -67,6 +67,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     compare.add_argument("--env", default=None, help="Gymnasium env id (overrides config)")
     compare.add_argument(
+        "--report", type=Path, default=None,
+        help="write a JSON report of the comparison to this path",
+    )
+    compare.add_argument(
         "--report-html", type=Path, default=None,
         help="write an HTML report of the comparison to this path",
     )
@@ -131,6 +135,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
         algo=cfg.algo,
         base_seed=cfg.base_seed,
         regression=reg,
+        report=args.report,
         report_html=args.report_html,
     )
 

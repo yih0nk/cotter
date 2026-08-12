@@ -66,6 +66,19 @@ class TestCompare:
         assert rc == 1
         assert "REGRESSION" in out
 
+    def test_report_flags_write_json_and_html(self, cfg_file, tmp_path):
+        json_path = tmp_path / "out" / "compare.json"
+        html_path = tmp_path / "out" / "compare.html"
+        rc = main([
+            "compare", "--baseline", str(VICTIM), "--candidate", str(VICTIM),
+            "--config", str(cfg_file), "--report", str(json_path),
+            "--report-html", str(html_path), "--quiet",
+        ])
+        assert rc == 0
+        assert json_path.exists()
+        assert '"cotter_report_version"' in json_path.read_text()
+        assert html_path.read_text().startswith("<!doctype html>")
+
     def test_missing_candidate_exits_two(self, cfg_file, tmp_path, capsys):
         rc = main([
             "compare", "--baseline", str(VICTIM),
