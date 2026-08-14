@@ -1,6 +1,6 @@
 """Unit tests for the reproducibility manifest (cotter.manifest)."""
 
-from cotter.manifest import build_manifest, dependency_versions
+from cotter.manifest import build_manifest, dependency_versions, hash_file
 
 
 def test_dependency_versions_lists_the_full_tracked_set():
@@ -42,5 +42,29 @@ def test_build_manifest_omits_absent_optionals():
 
 
 def test_extra_is_merged_last():
-    m = build_manifest(cotter_version="1.0.0", extra={"policy_sha256": "sha256:abc"})
-    assert m["policy_sha256"] == "sha256:abc"
+    m = build_manifest(cotter_version="1.0.0", extra={"note": "hello"})
+    assert m["note"] == "hello"
+
+
+def test_hash_file_is_deterministic_and_prefixed(tmp_path):
+    f = tmp_path / "policy.bin"
+    f.write_bytes(b"weights")
+    h1 = hash_file(f)
+    h2 = hash_file(f)
+    assert h1 == h2
+    assert h1.startswith("sha256:")
+    # content change -> different hash
+    f.write_bytes(b"weights2")
+    assert hash_file(f) != h1
+
+
+def test_hash_file_missing_returns_none(tmp_path):
+    assert hash_file(tmp_path / "nope.bin") is None
+
+
+def test_build_manifest_hashes_policy(tmp_path):
+    policy = tmp_path / "victim.zip"
+    policy.write_bytes(b"policy-bytes")
+    m = build_manifest(cotter_version="1.0.0", policy_path=policy)
+    assert m["policy_path"] == str(policy)
+    assert m["policy_sha256"].startswith("sha256:")
