@@ -15,8 +15,10 @@ from typing import Callable
 
 import gymnasium as gym
 
+from cotter import __version__
 from cotter.backends import BackendFactory
 from cotter.config import RunConfig
+from cotter.manifest import build_manifest
 from cotter.envs.factory import WrappedEnvFactory
 from cotter.envs.wrapper import CotterWrapper
 from cotter.policy import Policy, load_policy
@@ -115,6 +117,12 @@ def run_from_config(
         policy_name=policy.name,
         env_id=cfg.env,
         metadata={"base_seed": cfg.base_seed, "success": cfg.success, "algo": cfg.algo},
+        manifest=build_manifest(
+            cotter_version=__version__,
+            env_id=cfg.env,
+            base_seed=cfg.base_seed,
+            policy_path=policy_path,
+        ),
     )
 
     if cfg.performance is not None:
