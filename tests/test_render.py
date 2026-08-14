@@ -88,6 +88,21 @@ class TestRenderHtml:
         html = render_html(full_report)
         assert "np.float" not in html and "numpy" not in html
 
+    def test_manifest_section_rendered_when_present(self, full_report):
+        full_report.manifest = {"cotter_version": "0.2.0", "policy_sha256": "sha256:deadbeef"}
+        html = render_html(full_report)
+        assert "Reproducibility manifest" in html
+        assert "0.2.0" in html
+        assert "sha256:deadbeef" in html
+
+    def test_manifest_section_absent_when_empty(self, full_report):
+        assert not full_report.manifest
+        assert "Reproducibility manifest" not in render_html(full_report)
+
+    def test_content_hash_shown_in_footer(self, full_report):
+        html = render_html(full_report)
+        assert full_report.content_hash() in html
+
 
 class TestToHtml:
     def test_writes_file_and_returns_path(self, full_report, tmp_path):
