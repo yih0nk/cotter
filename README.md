@@ -43,7 +43,7 @@ Or from source with [Poetry](https://python-poetry.org/):
 git clone https://github.com/yih0nk/cotter.git
 cd cotter
 poetry install
-poetry run pytest   # 241 tests, unit + real-MuJoCo integration
+poetry run pytest   # 259 tests, unit + real-MuJoCo integration
 ```
 
 ## Quickstart (CLI)
@@ -111,6 +111,30 @@ poetry run cotter run \
 The HTML page is the *free* counterpart to the paid compliance layer: the
 open engine renders the pass/fail evidence into something shareable; the
 licensed layer renders it into a signed, regulator-ready technical file.
+
+### Reproducibility manifest
+
+Every report (schema v2+) carries a `manifest` recording the full
+provenance of the run — so a result can be reproduced and audited, not
+just read:
+
+```json
+"manifest": {
+  "cotter_version": "0.2.0",
+  "python_version": "3.11.9",
+  "platform": "Linux-6.5.0-x86_64",
+  "dependencies": { "gymnasium": "1.0.0", "mujoco": "3.2.3", "torch": "2.4.1", ... },
+  "env_id": "InvertedPendulum-v5",
+  "base_seed": 0,
+  "policy_path": "artifacts/victim.zip",
+  "policy_sha256": "sha256:1f3a…"
+}
+```
+
+The report also includes `content_sha256`, a digest over the report body
+(excluding the timestamp and the digest itself). It is a stable id and a
+tamper-evidence check: recompute sha256 over the report minus
+(`created_at`, `content_sha256`) and it must match.
 
 ### Comparing two policy versions
 
