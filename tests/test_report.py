@@ -79,6 +79,17 @@ class TestOutput:
         assert loaded["results"][1]["data"]["rate"] == 0.5
         assert len(loaded["results"]) == 2
 
+    def test_manifest_serializes_at_schema_v2(self, report, tmp_path):
+        report.manifest = {"cotter_version": "9.9.9", "policy_sha256": "sha256:abc"}
+        report.add_sprt(make_sprt_pass())
+        loaded = json.loads(report.to_json(tmp_path / "r.json").read_text())
+        assert loaded["cotter_report_version"] == 2
+        assert loaded["manifest"]["cotter_version"] == "9.9.9"
+
+    def test_manifest_defaults_to_empty(self, report):
+        assert report.manifest == {}
+        assert report.to_dict()["manifest"] == {}
+
     def test_summary_lists_all_categories(self, report):
         report.add_sprt(make_sprt_pass())
         report.add_safety(make_safety_fail())

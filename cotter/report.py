@@ -55,6 +55,7 @@ class TestReport:
     policy_name: str
     env_id: str
     metadata: dict = field(default_factory=dict)
+    manifest: dict = field(default_factory=dict)
     results: list[CategoryResult] = field(default_factory=list)
     created_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -130,11 +131,12 @@ class TestReport:
 
     def to_dict(self) -> dict:
         return {
-            "cotter_report_version": 1,
+            "cotter_report_version": 2,
             "policy_name": self.policy_name,
             "env_id": self.env_id,
             "created_at": self.created_at,
             "metadata": self.metadata,
+            "manifest": self.manifest,
             "overall_passed": self.overall_passed,
             "results": [r.to_dict() for r in self.results],
         }
