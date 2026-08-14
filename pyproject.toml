@@ -1,6 +1,6 @@
 [project]
 name = "cotterbot"
-version = "0.1.0"
+version = "0.2.0"
 description = "Compliance-testing framework for AI-controlled robot policies — pytest for robot policies."
 authors = [{ name = "yihan", email = "hyihan2007hong@gmail.com" }]
 readme = "README.md"
