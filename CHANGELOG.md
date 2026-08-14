@@ -1,0 +1,28 @@
+# Changelog
+
+## 0.2.0
+
+**Reports**
+
+- Free, self-contained **HTML report** — `cotter run --report-html` /
+  `report_html:` in the config, or `TestReport.to_html()`. No external
+  assets, no JavaScript, adapts to the viewer's light/dark theme.
+- `cotter compare` now accepts `--report` (JSON), symmetric with
+  `--report-html`, so a comparison can emit machine-readable evidence.
+
+**Reproducibility (report schema v2)**
+
+- Every report carries a **reproducibility manifest**: cotter version,
+  dependency + platform versions, env id, base seed, and the policy
+  artifact's sha256.
+- Reports include **`content_sha256`**, a tamper-evident digest over the
+  report body (excluding the timestamp and the digest itself) — a stable
+  id that can be independently recomputed and verified.
+- `cotter_report_version` bumped `1` → `2`. The added fields are
+  additive; consumers that read the version tolerate both.
+
+## 0.1.0
+
+Initial PyPI release (`cotterbot`): the test engine (performance / safety
+/ regression / adversarial), `cotter run` / `compare` / `list-envs` /
+`zoo` CLI, JSON report, adversary zoo, and parallel rollouts.
