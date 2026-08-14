@@ -102,3 +102,21 @@ class TestRunCommand:
         assert rc == 0
         assert html_path.exists()
         assert html_path.read_text().startswith("<!doctype html>")
+
+    def test_run_report_carries_manifest_and_content_hash(self, tmp_path):
+        import json
+
+        cfg = write_config(tmp_path, MINIMAL)
+        report_path = tmp_path / "r.json"
+        rc = main([
+            "run", "--policy", str(VICTIM), "--config", str(cfg),
+            "--report", str(report_path), "--quiet",
+        ])
+        assert rc == 0
+        report = json.loads(report_path.read_text())
+        assert report["cotter_report_version"] == 2
+        m = report["manifest"]
+        assert m["cotter_version"]  # non-empty
+        assert m["env_id"] == "InvertedPendulum-v5"
+        assert m["policy_sha256"].startswith("sha256:")
+        assert report["content_sha256"].startswith("sha256:")
