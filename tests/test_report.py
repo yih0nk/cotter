@@ -90,6 +90,26 @@ class TestOutput:
         assert report.manifest == {}
         assert report.to_dict()["manifest"] == {}
 
+    def test_content_hash_is_verifiable(self, report):
+        import hashlib
+
+        report.add_sprt(make_sprt_pass())
+        d = report.to_dict()
+        # recompute over the body minus the volatile / self-referential fields
+        body = {k: v for k, v in d.items() if k not in ("created_at", "content_sha256")}
+        expected = "sha256:" + hashlib.sha256(
+            json.dumps(body, sort_keys=True).encode()
+        ).hexdigest()
+        assert d["content_sha256"] == expected
+
+    def test_content_hash_ignores_timestamp_but_reflects_results(self, report):
+        report.add_sprt(make_sprt_pass())
+        h1 = report.content_hash()
+        report.created_at = "2099-01-01T00:00:00+00:00"
+        assert report.content_hash() == h1  # timestamp not included
+        report.add_safety(make_safety_fail())
+        assert report.content_hash() != h1  # a new result changes it
+
     def test_summary_lists_all_categories(self, report):
         report.add_sprt(make_sprt_pass())
         report.add_safety(make_safety_fail())

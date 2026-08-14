@@ -7,6 +7,7 @@ document generation is explicitly out of scope.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -129,17 +130,34 @@ class TestReport:
         """True iff no category explicitly failed (informational results ignored)."""
         return all(r.passed is not False for r in self.results)
 
-    def to_dict(self) -> dict:
+    def _content_payload(self) -> dict:
+        """The report body that the content hash covers.
+
+        Deliberately excludes the timestamp and the hash itself, so the
+        hash is deterministic and independently verifiable: recompute
+        sha256 over ``to_dict()`` minus ``created_at`` and
+        ``content_sha256`` and it must match.
+        """
         return {
             "cotter_report_version": 2,
             "policy_name": self.policy_name,
             "env_id": self.env_id,
-            "created_at": self.created_at,
             "metadata": self.metadata,
             "manifest": self.manifest,
             "overall_passed": self.overall_passed,
             "results": [r.to_dict() for r in self.results],
         }
+
+    def content_hash(self) -> str:
+        """A ``"sha256:<hex>"`` digest over the report body (tamper-evident)."""
+        canonical = json.dumps(self._content_payload(), sort_keys=True, cls=_NumpyEncoder)
+        return "sha256:" + hashlib.sha256(canonical.encode()).hexdigest()
+
+    def to_dict(self) -> dict:
+        payload = self._content_payload()
+        payload["created_at"] = self.created_at
+        payload["content_sha256"] = self.content_hash()
+        return payload
 
     def to_json(self, path: str | Path) -> Path:
         path = Path(path)
