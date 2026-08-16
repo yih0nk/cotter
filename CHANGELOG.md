@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 (unreleased)
+
+- **ONNX policy loader.** Load `.onnx` policies via `load_policy` (the new
+  `OnnxPolicy`, backed by `onnxruntime`). Install the optional extra with
+  `pip install cotterbot[onnx]`. Handles the common single-input
+  Box-observation export shape, adding/stripping a batch axis
+  automatically; multi-input (Dict-observation) models raise a clear error.
+
 ## 0.2.0
 
 **Reports**

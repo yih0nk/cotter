@@ -3,9 +3,11 @@
 **Compliance testing for AI-controlled robot policies — pytest for robot
 policies.**
 
-Cotter loads a trained robot policy as a black box (observation → action),
-runs it through a battery of standardized tests in MuJoCo simulation, and
-produces structured pass/fail results with statistical guarantees. It is
+Cotter loads a trained robot policy as a black box (observation → action)
+— a Stable-Baselines3 `.zip`, a raw PyTorch `.pt`/`.pth` module, or an
+ONNX `.onnx` model — runs it through a battery of standardized tests in
+MuJoCo simulation, and produces structured pass/fail results with
+statistical guarantees. It is
 aimed at the emerging regulatory need (EU Machinery Regulation, ISO 10218)
 for evidence that a learned controller actually behaves — but the core is
 just honest, reproducible testing:
@@ -29,6 +31,12 @@ Requires Python 3.11. From PyPI (the distribution is published as
 pip install cotterbot
 ```
 
+To load **ONNX** policies, install the optional extra (pulls in `onnxruntime`):
+
+```sh
+pip install "cotterbot[onnx]"
+```
+
 > **Note:** on some systems the `cotter` binary lands outside your PATH (pip
 > will warn you with the exact directory). Either add that directory to PATH,
 > or invoke via `python -m cotter` instead:
@@ -43,7 +51,7 @@ Or from source with [Poetry](https://python-poetry.org/):
 git clone https://github.com/yih0nk/cotter.git
 cd cotter
 poetry install
-poetry run pytest   # 259 tests, unit + real-MuJoCo integration
+poetry run pytest   # 266 tests, unit + real-MuJoCo integration
 ```
 
 ## Quickstart (CLI)
@@ -199,7 +207,7 @@ from cotter import (
 #    magnitudes in every step's info dict.
 env = CotterWrapper(gym.make("InvertedPendulum-v5"))
 
-# 2. Load the policy under test (SB3 .zip or a raw torch .pt module).
+# 2. Load the policy under test (SB3 .zip, raw torch .pt, or .onnx).
 #    Observation/action spaces are validated and mismatches fail loudly.
 policy = load_policy("artifacts/victim_ppo_inverted_pendulum.zip", env, algo=PPO)
 
