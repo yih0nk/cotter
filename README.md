@@ -51,7 +51,7 @@ Or from source with [Poetry](https://python-poetry.org/):
 git clone https://github.com/yih0nk/cotter.git
 cd cotter
 poetry install
-poetry run pytest   # 266 tests, unit + real-MuJoCo integration
+poetry run pytest   # 278 tests, unit + real-MuJoCo integration
 ```
 
 ## Quickstart (CLI)
@@ -141,8 +141,17 @@ just read:
 
 The report also includes `content_sha256`, a digest over the report body
 (excluding the timestamp and the digest itself). It is a stable id and a
-tamper-evidence check: recompute sha256 over the report minus
-(`created_at`, `content_sha256`) and it must match.
+tamper-evidence check.
+
+Verify a report's integrity with `cotter verify`:
+
+```sh
+cotter verify report.json                 # recompute + check content_sha256
+cotter verify report.json --policy p.zip  # also re-hash the policy vs the manifest
+```
+
+Exit 0 means verified, 1 means a check failed (the report or policy was
+modified), 2 means the report is missing or invalid.
 
 ### Comparing two policy versions
 

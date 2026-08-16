@@ -7,6 +7,11 @@
   `pip install cotterbot[onnx]`. Handles the common single-input
   Box-observation export shape, adding/stripping a batch axis
   automatically; multi-input (Dict-observation) models raise a clear error.
+- **`cotter verify` command.** Check a report's integrity —
+  `cotter verify report.json` recomputes the `content_sha256` and reports
+  whether the report was modified; `--policy <path>` also re-hashes the
+  policy against the manifest's `policy_sha256`. Exit 0 = verified, 1 =
+  a check failed, 2 = missing/invalid report.
 
 ## 0.2.0
 
