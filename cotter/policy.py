@@ -1,11 +1,13 @@
 """Black-box policy loading and observation/action-space validation.
 
-Cotter treats a policy as a black box mapping observation -> action. Two
-concrete backends are supported:
+Cotter treats a policy as a black box mapping observation -> action.
+Three concrete backends are supported:
 
 * Stable-Baselines3 models (a loaded ``BaseAlgorithm`` or a ``.zip`` path)
 * Raw PyTorch modules (an ``nn.Module`` instance or a ``.pt`` path saved
   with ``torch.save``/``torch.jit.save``)
+* ONNX models (a ``.onnx`` path). Requires ``onnxruntime`` — install the
+  optional extra with ``pip install cotterbot[onnx]``.
 
 Every load path runs :func:`validate_spaces`, which checks the policy's
 expected observation/action shapes against the target environment and
@@ -60,6 +62,52 @@ class TorchPolicy:
         tensor = torch.as_tensor(np.asarray(obs), dtype=torch.float32)
         action = self.module(tensor)
         return action.detach().cpu().numpy()
+
+
+class OnnxPolicy:
+    """Wrap an ONNX model as a deterministic black-box policy.
+
+    Supports single-input (Box observation) models — the common export
+    shape ``[batch, obs_dim] -> [batch, act_dim]``. A leading batch axis
+    is added/stripped automatically by comparing the model's declared
+    input rank against the observation's rank, so a single observation
+    round-trips whether or not the export fixed a batch dimension.
+    """
+
+    def __init__(self, session, name: str, input_name: str, input_rank: int) -> None:
+        self.session = session
+        self.name = name
+        self._input_name = input_name
+        self._input_rank = input_rank
+
+    @classmethod
+    def from_path(cls, path: str | Path, name: str | None = None) -> "OnnxPolicy":
+        try:
+            import onnxruntime as ort
+        except ImportError as exc:  # pragma: no cover - exercised via load_policy
+            raise ImportError(
+                "loading an ONNX policy requires onnxruntime; install the "
+                "optional extra with 'pip install cotterbot[onnx]'"
+            ) from exc
+
+        path = Path(path)
+        session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+        inputs = session.get_inputs()
+        if len(inputs) != 1:
+            raise SpaceMismatchError(
+                f"ONNX policy '{path.name}' has {len(inputs)} inputs; only "
+                "single-input (Box observation) models are supported. Dict "
+                "observation models are not yet handled."
+            )
+        spec = inputs[0]
+        return cls(session, name or path.stem, spec.name, len(spec.shape))
+
+    def predict(self, obs: np.ndarray) -> np.ndarray:
+        arr = np.asarray(obs, dtype=np.float32)
+        add_batch = self._input_rank == arr.ndim + 1
+        payload = arr[None, ...] if add_batch else arr
+        output = np.asarray(self.session.run(None, {self._input_name: payload})[0])
+        return output[0] if add_batch else output
 
 
 def _obs_shape_signature(space: gym.Space):
@@ -161,9 +209,12 @@ def load_policy(
                     "save the full module, not just a state_dict"
                 )
             policy = TorchPolicy(module, name=name or path.stem)
+        elif path.suffix == ".onnx":
+            policy = OnnxPolicy.from_path(path, name=name)
         else:
             raise ValueError(
-                f"unsupported policy file type '{path.suffix}' (expected .zip or .pt/.pth)"
+                f"unsupported policy file type '{path.suffix}' "
+                "(expected .zip, .pt/.pth, or .onnx)"
             )
 
     validate_spaces(policy, env)
