@@ -83,6 +83,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--filter", default=None, help="only show env ids containing this substring"
     )
 
+    verify = subparsers.add_parser(
+        "verify", help="check a report's content hash and (optionally) its policy hash"
+    )
+    verify.add_argument("report", type=Path, help="path to a JSON report")
+    verify.add_argument(
+        "--policy", type=Path, default=None,
+        help="policy file to re-hash against the report's manifest",
+    )
+
     zoo = subparsers.add_parser("zoo", help="inspect the cached adversary zoo")
     zoo.add_argument("--root", type=Path, default=None, help="zoo root (default ~/.cotter/zoo)")
     zoo_sub = zoo.add_subparsers(dest="zoo_command", required=True)
@@ -186,6 +195,27 @@ def cmd_list_envs(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_verify(args: argparse.Namespace) -> int:
+    from cotter.verify import load_report, verify_report
+
+    try:
+        payload = load_report(args.report)
+    except FileNotFoundError:
+        print(f"error: report not found: {args.report}", file=sys.stderr)
+        return 2
+    except (ValueError, OSError) as exc:
+        print(f"error: could not read report {args.report}: {exc}", file=sys.stderr)
+        return 2
+
+    result = verify_report(payload, policy_path=args.policy)
+    mark = {True: "ok  ", False: "FAIL", None: "n/a "}
+    print(f"verifying {args.report}")
+    for check in result.checks:
+        print(f"  [{mark[check.ok]}] {check.name}: {check.detail}")
+    print(f"=> {'VERIFIED' if result.ok else 'FAILED'}")
+    return 0 if result.ok else 1
+
+
 def cmd_zoo(args: argparse.Namespace) -> int:
     from cotter.zoo import AdversaryZoo
 
@@ -226,6 +256,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_run(args)
     if args.command == "compare":
         return cmd_compare(args)
+    if args.command == "verify":
+        return cmd_verify(args)
     if args.command == "zoo":
         return cmd_zoo(args)
     if args.command == "list-envs":
