@@ -102,6 +102,23 @@ class TestOutput:
         ).hexdigest()
         assert d["content_sha256"] == expected
 
+    def test_content_hash_of_dict_matches_method(self, report):
+        from cotter.report import content_hash_of
+
+        report.add_sprt(make_sprt_pass())
+        d = report.to_dict()
+        # recomputing from the serialized dict must equal the object's hash
+        assert content_hash_of(d) == report.content_hash()
+        assert content_hash_of(d) == d["content_sha256"]
+
+    def test_content_hash_of_detects_tampering(self, report):
+        from cotter.report import content_hash_of
+
+        report.add_sprt(make_sprt_pass())
+        d = report.to_dict()
+        d["results"][0]["passed"] = False  # flip a verdict
+        assert content_hash_of(d) != d["content_sha256"]
+
     def test_content_hash_ignores_timestamp_but_reflects_results(self, report):
         report.add_sprt(make_sprt_pass())
         h1 = report.content_hash()

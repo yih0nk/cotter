@@ -51,6 +51,24 @@ class _NumpyEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
+# Fields excluded from the content hash: the timestamp varies run-to-run
+# and the hash cannot cover itself.
+_HASH_EXCLUDED = ("created_at", "content_sha256")
+
+
+def content_hash_of(payload: dict) -> str:
+    """``"sha256:<hex>"`` digest over a report body.
+
+    Works on any report dict — including one loaded from disk — so a
+    stored ``content_sha256`` can be independently recomputed and checked
+    (see ``cotter verify``). Excludes the timestamp and the hash field
+    itself and sorts keys, so the digest is deterministic.
+    """
+    body = {k: v for k, v in payload.items() if k not in _HASH_EXCLUDED}
+    canonical = json.dumps(body, sort_keys=True, cls=_NumpyEncoder)
+    return "sha256:" + hashlib.sha256(canonical.encode()).hexdigest()
+
+
 @dataclass
 class TestReport:
     policy_name: str
@@ -150,8 +168,7 @@ class TestReport:
 
     def content_hash(self) -> str:
         """A ``"sha256:<hex>"`` digest over the report body (tamper-evident)."""
-        canonical = json.dumps(self._content_payload(), sort_keys=True, cls=_NumpyEncoder)
-        return "sha256:" + hashlib.sha256(canonical.encode()).hexdigest()
+        return content_hash_of(self._content_payload())
 
     def to_dict(self) -> dict:
         payload = self._content_payload()
