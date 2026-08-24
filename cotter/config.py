@@ -33,6 +33,7 @@ Example::
       timesteps: 150000
     report: report.json
     report_html: report.html
+    report_junit: report.xml
 """
 
 from __future__ import annotations
@@ -101,6 +102,7 @@ class RunConfig:
     adversarial: AdversarialConfig | None = None
     report: Path | None = None
     report_html: Path | None = None
+    report_junit: Path | None = None
 
     def success_fn(self):
         return make_success_fn(self.success)
@@ -108,7 +110,8 @@ class RunConfig:
 
 _KNOWN_TOP_KEYS = {
     "env", "algo", "base_seed", "backend", "success",
-    "performance", "safety", "regression", "adversarial", "report", "report_html",
+    "performance", "safety", "regression", "adversarial",
+    "report", "report_html", "report_junit",
 }
 
 
@@ -180,6 +183,7 @@ def parse_config(data: dict, config_dir: Path | None = None) -> RunConfig:
         adversarial=_section(data, "adversarial", AdversarialConfig),
         report=resolve(data["report"]) if "report" in data else None,
         report_html=resolve(data["report_html"]) if "report_html" in data else None,
+        report_junit=resolve(data["report_junit"]) if "report_junit" in data else None,
     )
     if cfg.safety is not None and not cfg.safety.limits:
         raise ConfigError("'safety' section requires a 'limits' mapping")

@@ -103,6 +103,21 @@ class TestRunCommand:
         assert html_path.exists()
         assert html_path.read_text().startswith("<!doctype html>")
 
+    def test_report_junit_override(self, tmp_path):
+        import xml.etree.ElementTree as ET
+
+        cfg = write_config(tmp_path, MINIMAL)
+        xml_path = tmp_path / "out" / "r.xml"
+        rc = main([
+            "run", "--policy", str(VICTIM), "--config", str(cfg),
+            "--report-junit", str(xml_path), "--quiet",
+        ])
+        assert rc == 0
+        assert xml_path.exists()
+        root = ET.parse(xml_path).getroot()
+        assert root.tag == "testsuites"
+        assert root.findall(".//testcase")  # at least one category rendered
+
     def test_run_report_carries_manifest_and_content_hash(self, tmp_path):
         import json
 

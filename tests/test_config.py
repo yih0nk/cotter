@@ -17,6 +17,7 @@ FULL = {
     "adversarial": {"epsilon": 0.07, "train": False},
     "report": "out/report.json",
     "report_html": "out/report.html",
+    "report_junit": "out/report.xml",
 }
 
 
@@ -35,6 +36,7 @@ class TestParseConfig:
         assert cfg.adversarial.timesteps == 150_000  # default preserved
         assert cfg.report == Path("out/report.json")
         assert cfg.report_html == Path("out/report.html")
+        assert cfg.report_junit == Path("out/report.xml")
         assert cfg.success_fn()(0.0, 1000, False, True, {})
 
     def test_minimal_config_categories_none(self):
@@ -45,6 +47,7 @@ class TestParseConfig:
         assert cfg.adversarial is None
         assert cfg.report is None
         assert cfg.report_html is None
+        assert cfg.report_junit is None
         assert cfg.algo == "PPO"
         assert cfg.backend == "gymnasium"  # default backend
 

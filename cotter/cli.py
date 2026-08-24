@@ -52,6 +52,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="HTML report path (overrides the config's 'report_html')",
     )
     run.add_argument(
+        "--report-junit", type=Path, default=None,
+        help="JUnit XML report path (overrides the config's 'report_junit')",
+    )
+    run.add_argument(
         "--quiet", action="store_true", help="suppress progress output"
     )
 
@@ -73,6 +77,10 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument(
         "--report-html", type=Path, default=None,
         help="write an HTML report of the comparison to this path",
+    )
+    compare.add_argument(
+        "--report-junit", type=Path, default=None,
+        help="write a JUnit XML report of the comparison to this path",
     )
     compare.add_argument("--quiet", action="store_true", help="suppress progress output")
 
@@ -114,6 +122,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         cfg.report = args.report
     if args.report_html is not None:
         cfg.report_html = args.report_html
+    if args.report_junit is not None:
+        cfg.report_junit = args.report_junit
 
     try:
         report = run_from_config(args.policy, cfg, log=log)
@@ -146,6 +156,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
         regression=reg,
         report=args.report,
         report_html=args.report_html,
+        report_junit=args.report_junit,
     )
 
     try:
