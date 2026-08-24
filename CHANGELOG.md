@@ -12,6 +12,10 @@
   whether the report was modified; `--policy <path>` also re-hashes the
   policy against the manifest's `policy_sha256`. Exit 0 = verified, 1 =
   a check failed, 2 = missing/invalid report.
+- **JUnit XML report output.** `report_junit:` in the config or
+  `--report-junit` on `run`/`compare` writes a JUnit XML report (each
+  category a `<testcase>`), so a Cotter run renders as native test results
+  in GitHub Actions, GitLab, Jenkins, and other CI systems.
 
 ## 0.2.0
 

@@ -51,7 +51,7 @@ Or from source with [Poetry](https://python-poetry.org/):
 git clone https://github.com/yih0nk/cotter.git
 cd cotter
 poetry install
-poetry run pytest   # 278 tests, unit + real-MuJoCo integration
+poetry run pytest   # 288 tests, unit + real-MuJoCo integration
 ```
 
 ## Quickstart (CLI)
@@ -98,9 +98,9 @@ confidence interval (SPRT and adversarial results), and regression
 results carry an effect size — the discordant-pair odds ratio for
 McNemar, the rank-biserial correlation for Wilcoxon.
 
-### Reports (JSON + HTML)
+### Reports (JSON + HTML + JUnit)
 
-Every run prints a console summary and can write two artifacts:
+Every run prints a console summary and can write three artifacts:
 
 - **JSON** (`report:` in the config, or `--report`) — the machine-readable
   evidence, one object per category with the full statistics.
@@ -108,6 +108,9 @@ Every run prints a console summary and can write two artifacts:
   self-contained page you can open in a browser, drop into a pull request,
   or attach to a demo. No external assets, no JavaScript, adapts to the
   viewer's light/dark theme.
+- **JUnit XML** (`report_junit:` in the config, or `--report-junit`) — each
+  category as a `<testcase>`, so a Cotter run shows up as native test
+  results in GitHub Actions, GitLab, Jenkins, CircleCI, etc.
 
 ```sh
 poetry run cotter run \
