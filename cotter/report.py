@@ -195,6 +195,15 @@ class TestReport:
         path.write_text(render_html(self))
         return path
 
+    def to_junit(self, path: str | Path) -> Path:
+        """Write a JUnit XML report for native rendering in CI systems."""
+        from cotter.junit import to_junit_xml
+
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(to_junit_xml(self.to_dict()))
+        return path
+
     def summary(self) -> str:
         width = 78
         mark = {True: "PASS", False: "FAIL", None: "INFO"}
