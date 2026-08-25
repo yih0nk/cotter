@@ -17,7 +17,7 @@ just honest, reproducible testing:
 | **Performance** | Does it succeed at the task? | Wald's sequential probability ratio test (SPRT) — stops sampling as soon as the evidence is decisive |
 | **Safety** | Does it ever exceed a hard physical limit? | Per-timestep checks on joint velocities / actuator forces / contacts; a single violation anywhere fails, no averaging |
 | **Regression** | Did the new version break behavior? | Matched pairs on a shared seed sequence, exact McNemar (binary) and Wilcoxon signed-rank (continuous) |
-| **Adversarial** | How bad is the worst case? | A PPO adversary trained to perturb the policy's *observations* within an L∞ budget, plus a guaranteed random-noise baseline |
+| **Adversarial** | How bad is the worst case? | A PPO adversary trained to perturb the policy's *observations* (sensor attack) or *actions* (actuator attack) within an L∞ budget, plus a guaranteed random-noise baseline |
 
 Everything runs on CPU (developed on Apple Silicon; no CUDA anywhere in
 the stack).
@@ -51,7 +51,7 @@ Or from source with [Poetry](https://python-poetry.org/):
 git clone https://github.com/yih0nk/cotter.git
 cd cotter
 poetry install
-poetry run pytest   # 298 tests, unit + real-MuJoCo integration
+poetry run pytest   # 316 tests, unit + real-MuJoCo integration
 ```
 
 ## Quickstart (CLI)
@@ -97,6 +97,20 @@ hence p = 1.) The config file schema is documented in
 confidence interval (SPRT and adversarial results), and regression
 results carry an effect size — the discordant-pair odds ratio for
 McNemar, the rank-biserial correlation for Wilcoxon.
+
+#### Adversarial attack surface
+
+The adversarial category attacks either surface, set by
+`adversarial.attack`:
+
+- `observation` (default) — perturb what the victim *sees* (sensor noise,
+  calibration drift).
+- `action` — perturb what the victim *does* (actuator noise, control-channel
+  corruption), clipped back into the action space.
+- `both` — run both; the report carries distinct `action_*` entries.
+
+Each surface runs a guaranteed random baseline and, when `train: true`, a
+PPO adversary trained against the frozen victim.
 
 ### Reports (JSON + HTML + JUnit + Markdown)
 

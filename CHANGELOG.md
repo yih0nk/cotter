@@ -19,6 +19,12 @@
 - **Markdown report output.** `report_md:` in the config or `--report-md`
   on `run`/`compare` writes a GitHub-flavored Markdown report — a
   shareable plain-text summary for PRs, issues, and wikis.
+- **Action-space adversary.** A second attack surface: bounded
+  perturbation of the victim's *action* (actuator noise / control-channel
+  corruption), alongside the existing observation attack. Select via
+  `adversarial.attack: observation | action | both`. Adds
+  `run_action_adversarial_test`, `train_action_adversary`,
+  `ActionPerturbationEnv`, and the action adversaries to the public API.
 
 ## 0.2.0
 
