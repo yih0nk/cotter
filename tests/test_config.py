@@ -18,6 +18,7 @@ FULL = {
     "report": "out/report.json",
     "report_html": "out/report.html",
     "report_junit": "out/report.xml",
+    "report_md": "out/report.md",
 }
 
 
@@ -37,6 +38,7 @@ class TestParseConfig:
         assert cfg.report == Path("out/report.json")
         assert cfg.report_html == Path("out/report.html")
         assert cfg.report_junit == Path("out/report.xml")
+        assert cfg.report_md == Path("out/report.md")
         assert cfg.success_fn()(0.0, 1000, False, True, {})
 
     def test_minimal_config_categories_none(self):
@@ -48,6 +50,7 @@ class TestParseConfig:
         assert cfg.report is None
         assert cfg.report_html is None
         assert cfg.report_junit is None
+        assert cfg.report_md is None
         assert cfg.algo == "PPO"
         assert cfg.backend == "gymnasium"  # default backend
 
