@@ -227,4 +227,8 @@ def run_from_config(
         path = report.to_junit(cfg.report_junit)
         log(f"[cotter] JUnit XML report written to {path}")
 
+    if cfg.report_md is not None:
+        path = report.to_markdown(cfg.report_md)
+        log(f"[cotter] Markdown report written to {path}")
+
     return report
