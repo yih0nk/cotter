@@ -77,6 +77,9 @@ class RegressionConfig:
     metric: str = "return"  # continuous metric for Wilcoxon: "return" or an info key
 
 
+_ATTACK_SURFACES = ("observation", "action", "both")
+
+
 @dataclass
 class AdversarialConfig:
     epsilon: float = 0.05
@@ -88,6 +91,13 @@ class AdversarialConfig:
     zoo_root: str | None = None  # override the default ~/.cotter/zoo
     n_workers: int = 1  # parallel rollout workers for the fixed-N eval; 1 = serial
     max_seconds: float | None = None  # wall-clock time-box on adversary training
+    attack: str = "observation"  # perturbation surface: observation | action | both
+
+    def __post_init__(self):
+        if self.attack not in _ATTACK_SURFACES:
+            raise ValueError(
+                f"adversarial.attack must be one of {list(_ATTACK_SURFACES)}; got {self.attack!r}"
+            )
 
 
 @dataclass

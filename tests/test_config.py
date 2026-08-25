@@ -54,6 +54,28 @@ class TestParseConfig:
         assert cfg.algo == "PPO"
         assert cfg.backend == "gymnasium"  # default backend
 
+    def test_adversarial_attack_defaults_to_observation(self):
+        cfg = parse_config({
+            "env": "X-v1", "success": {"type": "min_return", "value": 1},
+            "adversarial": {"epsilon": 0.05},
+        })
+        assert cfg.adversarial.attack == "observation"
+
+    def test_adversarial_attack_action_and_both(self):
+        for surface in ("action", "both"):
+            cfg = parse_config({
+                "env": "X-v1", "success": {"type": "min_return", "value": 1},
+                "adversarial": {"epsilon": 0.05, "attack": surface},
+            })
+            assert cfg.adversarial.attack == surface
+
+    def test_invalid_attack_surface_rejected(self):
+        with pytest.raises(ConfigError, match="attack"):
+            parse_config({
+                "env": "X-v1", "success": {"type": "min_return", "value": 1},
+                "adversarial": {"epsilon": 0.05, "attack": "weights"},
+            })
+
     def test_backend_override(self):
         cfg = parse_config({
             "env": "X-v1", "backend": "isaac-sim",
