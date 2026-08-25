@@ -118,6 +118,17 @@ class TestRunCommand:
         assert root.tag == "testsuites"
         assert root.findall(".//testcase")  # at least one category rendered
 
+    def test_report_md_override(self, tmp_path):
+        cfg = write_config(tmp_path, MINIMAL)
+        md_path = tmp_path / "out" / "r.md"
+        rc = main([
+            "run", "--policy", str(VICTIM), "--config", str(cfg),
+            "--report-md", str(md_path), "--quiet",
+        ])
+        assert rc == 0
+        assert md_path.exists()
+        assert md_path.read_text().startswith("# Cotter test report")
+
     def test_run_report_carries_manifest_and_content_hash(self, tmp_path):
         import json
 
