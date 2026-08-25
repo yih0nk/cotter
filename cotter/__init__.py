@@ -40,6 +40,16 @@ from cotter.tests.adversarial import (
     run_adversarial_test,
     train_adversary,
 )
+from cotter.tests.action_adversarial import (
+    ActionPerturbationEnv,
+    ActionPerturbedPolicy,
+    NullActionAdversary,
+    PPOActionAdversary,
+    RandomActionAdversary,
+    get_action_adversary,
+    run_action_adversarial_test,
+    train_action_adversary,
+)
 from cotter.tests.regression import (
     RegressionDecision,
     RegressionResult,
@@ -119,6 +129,15 @@ __all__ = [
     "run_adversarial_test",
     "train_adversary",
     "get_adversary",
+    # action-space adversarial
+    "ActionPerturbationEnv",
+    "ActionPerturbedPolicy",
+    "RandomActionAdversary",
+    "NullActionAdversary",
+    "PPOActionAdversary",
+    "run_action_adversarial_test",
+    "train_action_adversary",
+    "get_action_adversary",
     # report
     "TestReport",
     "__version__",
