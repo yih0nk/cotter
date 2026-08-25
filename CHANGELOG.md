@@ -16,6 +16,9 @@
   `--report-junit` on `run`/`compare` writes a JUnit XML report (each
   category a `<testcase>`), so a Cotter run renders as native test results
   in GitHub Actions, GitLab, Jenkins, and other CI systems.
+- **Markdown report output.** `report_md:` in the config or `--report-md`
+  on `run`/`compare` writes a GitHub-flavored Markdown report — a
+  shareable plain-text summary for PRs, issues, and wikis.
 
 ## 0.2.0
 
