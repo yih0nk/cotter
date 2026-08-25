@@ -204,6 +204,15 @@ class TestReport:
         path.write_text(to_junit_xml(self.to_dict()))
         return path
 
+    def to_markdown(self, path: str | Path) -> Path:
+        """Write a GitHub-flavored Markdown report (shareable plain text)."""
+        from cotter.render_md import render_markdown
+
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(render_markdown(self.to_dict()))
+        return path
+
     def summary(self) -> str:
         width = 78
         mark = {True: "PASS", False: "FAIL", None: "INFO"}

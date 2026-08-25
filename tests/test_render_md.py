@@ -69,3 +69,10 @@ class TestManifestAndHash:
     def test_content_hash_in_footer(self, report):
         md = render_markdown(report.to_dict())
         assert report.content_hash() in md
+
+
+class TestToMarkdownMethod:
+    def test_writes_file_matching_renderer(self, report, tmp_path):
+        out = report.to_markdown(tmp_path / "sub" / "report.md")
+        assert out.exists()
+        assert out.read_text() == render_markdown(report.to_dict())
