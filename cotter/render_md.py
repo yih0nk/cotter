@@ -48,5 +48,28 @@ def render_markdown(report: dict) -> str:
     else:
         lines.append("_No test categories were executed._")
 
+    manifest = report.get("manifest")
+    if manifest:
+        lines.append("")
+        lines.append("<details><summary>Reproducibility manifest</summary>")
+        lines.append("")
+        lines.append("| Field | Value |")
+        lines.append("|---|---|")
+        for key, value in manifest.items():
+            if isinstance(value, dict):
+                value = ", ".join(f"{k} {v}" for k, v in value.items())
+            lines.append(f"| `{_cell(key)}` | {_cell(value)} |")
+        lines.append("")
+        lines.append("</details>")
+
+    footer = []
+    if report.get("created_at"):
+        footer.append(f"generated {_cell(report['created_at'])}")
+    if report.get("content_sha256"):
+        footer.append(f"`{_cell(report['content_sha256'])}`")
+    if footer:
+        lines.append("")
+        lines.append("— " + " · ".join(footer))
+
     lines.append("")
     return "\n".join(lines) + "\n"

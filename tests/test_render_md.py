@@ -50,3 +50,22 @@ class TestRenderMarkdown:
         )
         assert "No test categories were executed" in md
         assert "OVERALL: ✅ **PASS**" in md
+
+
+class TestManifestAndHash:
+    def test_manifest_rendered_when_present(self, report):
+        report.manifest = {"cotter_version": "0.3.0", "dependencies": {"torch": "2.4.1"}}
+        md = render_markdown(report.to_dict())
+        assert "Reproducibility manifest" in md
+        assert "0.3.0" in md
+        # nested dict flattened, not a raw python dict
+        assert "torch 2.4.1" in md
+        assert "{'" not in md
+
+    def test_manifest_absent_when_empty(self, report):
+        assert not report.manifest
+        assert "Reproducibility manifest" not in render_markdown(report.to_dict())
+
+    def test_content_hash_in_footer(self, report):
+        md = render_markdown(report.to_dict())
+        assert report.content_hash() in md
