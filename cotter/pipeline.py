@@ -191,29 +191,65 @@ def run_from_config(
 
     if cfg.adversarial is not None:
         a = cfg.adversarial
-        log(f"[cotter] adversarial: eps={a.epsilon} over {a.n_episodes} episodes")
-        random_result = run_adversarial_test(
-            policy, env, success_fn, epsilon=a.epsilon, n_episodes=a.n_episodes,
-            min_success_rate=a.min_success_rate, base_seed=cfg.base_seed + _ADV_SEED,
-            notes="uniform random baseline",
-            n_workers=a.n_workers, env_factory=factory,
-        )
-        report.add_adversarial(random_result, name="random_baseline")
-        log(f"[cotter]   random baseline: {random_result.clean_success_rate:.0%} clean -> "
-            f"{random_result.adversarial_success_rate:.0%} perturbed")
-        if a.train:
-            adversary, notes = _obtain_adversary(policy_path, policy, env, cfg, a, log)
-            learned_result = run_adversarial_test(
+
+        if a.attack in ("observation", "both"):
+            log(f"[cotter] adversarial (observation): eps={a.epsilon} over {a.n_episodes} episodes")
+            random_result = run_adversarial_test(
                 policy, env, success_fn, epsilon=a.epsilon, n_episodes=a.n_episodes,
-                adversary=adversary, min_success_rate=a.min_success_rate,
-                base_seed=cfg.base_seed + _ADV_SEED,
-                notes=notes or "trained PPO adversary",
+                min_success_rate=a.min_success_rate, base_seed=cfg.base_seed + _ADV_SEED,
+                notes="uniform random baseline",
                 n_workers=a.n_workers, env_factory=factory,
             )
-            report.add_adversarial(learned_result, name=f"learned_{adversary.name}")
-            log(f"[cotter]   {adversary.name} adversary: "
-                f"{learned_result.clean_success_rate:.0%} clean -> "
-                f"{learned_result.adversarial_success_rate:.0%} perturbed")
+            report.add_adversarial(random_result, name="random_baseline")
+            log(f"[cotter]   random baseline: {random_result.clean_success_rate:.0%} clean -> "
+                f"{random_result.adversarial_success_rate:.0%} perturbed")
+            if a.train:
+                adversary, notes = _obtain_adversary(policy_path, policy, env, cfg, a, log)
+                learned_result = run_adversarial_test(
+                    policy, env, success_fn, epsilon=a.epsilon, n_episodes=a.n_episodes,
+                    adversary=adversary, min_success_rate=a.min_success_rate,
+                    base_seed=cfg.base_seed + _ADV_SEED,
+                    notes=notes or "trained PPO adversary",
+                    n_workers=a.n_workers, env_factory=factory,
+                )
+                report.add_adversarial(learned_result, name=f"learned_{adversary.name}")
+                log(f"[cotter]   {adversary.name} adversary: "
+                    f"{learned_result.clean_success_rate:.0%} clean -> "
+                    f"{learned_result.adversarial_success_rate:.0%} perturbed")
+
+        if a.attack in ("action", "both"):
+            from cotter.tests.action_adversarial import (
+                get_action_adversary,
+                run_action_adversarial_test,
+            )
+
+            log(f"[cotter] adversarial (action): eps={a.epsilon} over {a.n_episodes} episodes")
+            action_random = run_action_adversarial_test(
+                policy, env, success_fn, epsilon=a.epsilon, n_episodes=a.n_episodes,
+                min_success_rate=a.min_success_rate, base_seed=cfg.base_seed + _ADV_SEED,
+                notes="uniform random action baseline",
+                n_workers=a.n_workers, env_factory=factory,
+            )
+            report.add_adversarial(action_random, name="action_random_baseline")
+            log(f"[cotter]   action random baseline: {action_random.clean_success_rate:.0%} "
+                f"clean -> {action_random.adversarial_success_rate:.0%} perturbed")
+            if a.train:
+                action_adv, notes = get_action_adversary(
+                    policy, env, a.epsilon, timesteps=a.timesteps,
+                    seed=cfg.base_seed + _ADV_SEED, train=True, log=log,
+                    max_seconds=a.max_seconds,
+                )
+                action_learned = run_action_adversarial_test(
+                    policy, env, success_fn, epsilon=a.epsilon, n_episodes=a.n_episodes,
+                    adversary=action_adv, min_success_rate=a.min_success_rate,
+                    base_seed=cfg.base_seed + _ADV_SEED,
+                    notes=notes or "trained PPO action adversary",
+                    n_workers=a.n_workers, env_factory=factory,
+                )
+                report.add_adversarial(action_learned, name=f"learned_{action_adv.name}")
+                log(f"[cotter]   {action_adv.name} adversary: "
+                    f"{action_learned.clean_success_rate:.0%} clean -> "
+                    f"{action_learned.adversarial_success_rate:.0%} perturbed")
 
     if cfg.report is not None:
         path = report.to_json(cfg.report)

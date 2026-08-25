@@ -97,6 +97,33 @@ class TestRunFromConfig:
         assert not any(name.startswith("learned_") for _, name in categories)
         assert (tmp_path / "report.json").exists()
 
+    def test_action_attack_surface(self):
+        cfg = parse_config({
+            "env": "InvertedPendulum-v5",
+            "success": {"type": "min_length", "value": 10},
+            "adversarial": {
+                "epsilon": 0.5, "n_episodes": 2, "train": False, "attack": "action"
+            },
+        })
+        report = run_from_config(VICTIM, cfg, log=lambda m: None)
+        categories = [(r.category, r.name) for r in report.results]
+        # action attack produces the action baseline, not the observation one
+        assert ("adversarial", "action_random_baseline") in categories
+        assert ("adversarial", "random_baseline") not in categories
+
+    def test_both_attack_surfaces(self):
+        cfg = parse_config({
+            "env": "InvertedPendulum-v5",
+            "success": {"type": "min_length", "value": 10},
+            "adversarial": {
+                "epsilon": 0.5, "n_episodes": 2, "train": False, "attack": "both"
+            },
+        })
+        report = run_from_config(VICTIM, cfg, log=lambda m: None)
+        names = [r.name for r in report.results]
+        assert "random_baseline" in names
+        assert "action_random_baseline" in names
+
     def test_parallel_workers_match_serial_report(self):
         # Safety + regression with n_workers > 1 must produce the same
         # numbers as the serial (default) config on shared base_seed.
