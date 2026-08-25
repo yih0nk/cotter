@@ -214,3 +214,78 @@ def run_action_adversarial_test(
         ci_upper=ci_upper,
         ci_level=ci_level,
     )
+
+
+def train_action_adversary(
+    victim: Policy,
+    env: gym.Env,
+    epsilon: float,
+    timesteps: int = 20_000,
+    seed: int = 0,
+    verbose: int = 0,
+    max_seconds: float | None = None,
+) -> PPOActionAdversary:
+    """Train a PPO action adversary against the frozen victim.
+
+    ``max_seconds`` time-boxes training. Raises on failure — use
+    :func:`get_action_adversary` for automatic fallback to the random
+    baseline.
+    """
+    from stable_baselines3 import PPO
+
+    from cotter.tests.adversarial import _StopTrainingOnMaxSeconds
+
+    attack_env = ActionPerturbationEnv(env, victim, epsilon)
+    policy_type = (
+        "MultiInputPolicy"
+        if isinstance(attack_env.observation_space, gym.spaces.Dict)
+        else "MlpPolicy"
+    )
+    model = PPO(
+        policy_type,
+        attack_env,
+        seed=seed,
+        policy_kwargs={"net_arch": [32, 32]},
+        n_steps=1024,
+        batch_size=64,
+        learning_rate=3e-4,
+        verbose=verbose,
+        device="cpu",
+    )
+    callback = _StopTrainingOnMaxSeconds(max_seconds) if max_seconds else None
+    model.learn(total_timesteps=timesteps, callback=callback)
+    return PPOActionAdversary(model, epsilon)
+
+
+def get_action_adversary(
+    victim: Policy,
+    env: gym.Env,
+    epsilon: float,
+    timesteps: int = 20_000,
+    seed: int = 0,
+    train: bool = True,
+    log: Callable[[str], None] = print,
+    max_seconds: float | None = None,
+):
+    """Return ``(adversary, notes)``: the trained PPO action adversary, or
+    the random baseline with an explanatory note if training is disabled
+    or fails."""
+    if not train:
+        return (
+            RandomActionAdversary(epsilon, env.action_space.shape, seed=seed),
+            "learned action adversary disabled; random baseline",
+        )
+    try:
+        adversary = train_action_adversary(
+            victim, env, epsilon, timesteps=timesteps, seed=seed, max_seconds=max_seconds
+        )
+        return adversary, ""
+    except Exception as exc:  # deliberate blanket catch: never lose the category
+        log(
+            f"[cotter] PPO action adversary training failed ({exc!r}); "
+            "falling back to random baseline"
+        )
+        return (
+            RandomActionAdversary(epsilon, env.action_space.shape, seed=seed),
+            f"PPO action adversary training failed ({type(exc).__name__}); random baseline used",
+        )

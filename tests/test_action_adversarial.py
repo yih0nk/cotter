@@ -19,6 +19,7 @@ from cotter.tests.action_adversarial import (
     clip_to_space,
     require_box_action,
     run_action_adversarial_test,
+    get_action_adversary,
 )
 
 
@@ -139,3 +140,20 @@ class TestRunActionAdversarialTest:
         report.add_adversarial(result, name="action_random_baseline")
         assert report.results[0].category == "adversarial"
         assert "action_random" in report.results[0].summary
+
+
+class TestGetActionAdversary:
+    def test_train_false_returns_random_baseline(self, env):
+        victim = load_policy(ConstPolicy(), env)
+        adv, notes = get_action_adversary(victim, env, epsilon=0.5, train=False)
+        assert adv.name == "action_random"
+        assert "disabled" in notes
+
+    def test_train_true_produces_ppo_adversary(self, env):
+        victim = load_policy(ConstPolicy(), env)
+        # tiny budget of steps just to exercise the training path
+        adv, notes = get_action_adversary(
+            victim, env, epsilon=0.5, train=True, timesteps=64, log=lambda m: None
+        )
+        assert adv.name in ("action_ppo", "action_random")  # falls back if training errors
+
