@@ -18,7 +18,12 @@ from cotter.tests.action_adversarial import (
     RandomActionAdversary,
     clip_to_space,
     require_box_action,
+    run_action_adversarial_test,
 )
+
+
+def survival(total_reward, length, terminated, truncated, final_info):
+    return length >= 20
 
 ENV_ID = "InvertedPendulum-v5"
 
@@ -95,3 +100,42 @@ class TestActionPerturbationEnv:
         victim = load_policy(ConstPolicy(), env)
         with pytest.raises(ValueError):
             ActionPerturbationEnv(env, victim, epsilon=0.0)
+
+
+class TestRunActionAdversarialTest:
+    def test_result_shape_and_matched_seeds(self, env):
+        victim = load_policy(ConstPolicy(), env)
+        result = run_action_adversarial_test(
+            victim, env, survival, epsilon=0.5, n_episodes=5, min_success_rate=0.5
+        )
+        assert result.adversary_type == "action_random"
+        assert result.norm == "linf"
+        assert 0.0 <= result.adversarial_success_rate <= 1.0
+        assert result.ci_lower <= result.ci_upper
+        assert isinstance(result.passed, bool)
+
+    def test_bigger_budget_hurts_more(self, env):
+        # a real (loaded) victim; a large action-budget attack should not
+        # improve the success rate versus a tiny one.
+        victim = load_policy(
+            "artifacts/victim_ppo_inverted_pendulum.zip", env, algo=__import__(
+                "stable_baselines3"
+            ).PPO
+        )
+        small = run_action_adversarial_test(
+            victim, env, survival, epsilon=0.1, n_episodes=8, base_seed=0
+        )
+        big = run_action_adversarial_test(
+            victim, env, survival, epsilon=3.0, n_episodes=8, base_seed=0
+        )
+        assert big.adversarial_success_rate <= small.adversarial_success_rate + 1e-9
+
+    def test_appears_in_report_via_add_adversarial(self, env):
+        from cotter.report import TestReport
+
+        victim = load_policy(ConstPolicy(), env)
+        result = run_action_adversarial_test(victim, env, survival, epsilon=0.5, n_episodes=4)
+        report = TestReport(policy_name="p", env_id=ENV_ID)
+        report.add_adversarial(result, name="action_random_baseline")
+        assert report.results[0].category == "adversarial"
+        assert "action_random" in report.results[0].summary

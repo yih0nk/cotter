@@ -15,12 +15,20 @@ and a PPO adversary trained on :class:`ActionPerturbationEnv`.
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Callable, Protocol, Sequence
 
 import gymnasium as gym
 import numpy as np
 
 from cotter.policy import Policy
+from cotter.stats import clopper_pearson
+from cotter.runner import (
+    SuccessFn,
+    make_seed_sequence,
+    run_rollouts,
+    run_rollouts_parallel,
+)
+from cotter.tests.adversarial import AdversarialResult
 
 
 class ActionAdversary(Protocol):
@@ -144,3 +152,65 @@ class ActionPerturbedPolicy:
         action = np.asarray(self.victim.predict(obs), dtype=float)
         delta = self.adversary.perturb(obs, action)
         return clip_to_space(action + delta, self.action_space)
+
+
+def run_action_adversarial_test(
+    victim: Policy,
+    env: gym.Env,
+    success_fn: SuccessFn,
+    epsilon: float,
+    n_episodes: int = 20,
+    adversary: ActionAdversary | None = None,
+    min_success_rate: float = 0.5,
+    base_seed: int = 0,
+    seeds: Sequence[int] | None = None,
+    notes: str = "",
+    n_workers: int = 1,
+    env_factory: Callable[[], gym.Env] | None = None,
+    ci_level: float = 0.95,
+) -> AdversarialResult:
+    """Measure worst-case success rate under bounded action perturbation.
+
+    Clean and perturbed rollouts share a seed sequence, so the reported
+    drop is matched. PASS requires the perturbed success rate to stay at
+    or above ``min_success_rate``. Reuses :class:`AdversarialResult`; the
+    ``adversary_type`` (``action_random`` / ``action_ppo``) marks the
+    attack surface. ``n_workers > 1`` with an ``env_factory`` evaluates
+    the fixed-N rollouts in parallel.
+    """
+    require_box_action(env.action_space)
+    if adversary is None:
+        adversary = RandomActionAdversary(epsilon, env.action_space.shape, seed=base_seed)
+    if seeds is None:
+        seeds = make_seed_sequence(n_episodes, base_seed)
+
+    def rollouts(pol):
+        if n_workers > 1:
+            if env_factory is None:
+                raise ValueError("n_workers > 1 requires an env_factory")
+            return run_rollouts_parallel(
+                pol, env_factory, n_episodes, success_fn,
+                seeds=seeds, record_infos=False, n_workers=n_workers,
+            )
+        return run_rollouts(pol, env, n_episodes, success_fn, seeds=seeds, record_infos=False)
+
+    clean = rollouts(victim)
+    attacked = rollouts(ActionPerturbedPolicy(victim, adversary, env.action_space))
+
+    attacked_successes = sum(1 for s in attacked.successes if s)
+    ci_lower, ci_upper = clopper_pearson(attacked_successes, n_episodes, ci_level)
+
+    return AdversarialResult(
+        adversary_type=adversary.name,
+        epsilon=epsilon,
+        norm="linf",
+        clean_success_rate=clean.success_rate,
+        adversarial_success_rate=attacked.success_rate,
+        n_episodes=n_episodes,
+        min_success_rate=min_success_rate,
+        passed=attacked.success_rate >= min_success_rate,
+        notes=notes,
+        ci_lower=ci_lower,
+        ci_upper=ci_upper,
+        ci_level=ci_level,
+    )
