@@ -61,6 +61,21 @@ class TestParseConfig:
         })
         assert cfg.adversarial.attack == "observation"
 
+    def test_adversarial_pretrained_option(self):
+        cfg = parse_config({
+            "env": "X-v1", "success": {"type": "min_return", "value": 1},
+            "adversarial": {"epsilon": 0.05, "pretrained": "franka-panda"},
+        })
+        assert cfg.adversarial.pretrained == "franka-panda"
+        assert cfg.adversarial.pretrained_root is None
+
+    def test_adversarial_pretrained_defaults_none(self):
+        cfg = parse_config({
+            "env": "X-v1", "success": {"type": "min_return", "value": 1},
+            "adversarial": {"epsilon": 0.05},
+        })
+        assert cfg.adversarial.pretrained is None
+
     def test_adversarial_attack_action_and_both(self):
         for surface in ("action", "both"):
             cfg = parse_config({

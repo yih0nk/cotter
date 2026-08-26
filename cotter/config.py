@@ -92,6 +92,8 @@ class AdversarialConfig:
     n_workers: int = 1  # parallel rollout workers for the fixed-N eval; 1 = serial
     max_seconds: float | None = None  # wall-clock time-box on adversary training
     attack: str = "observation"  # perturbation surface: observation | action | both
+    pretrained: str | None = None  # robot-class label: transfer-attack from the pretrained zoo
+    pretrained_root: str | None = None  # override the pretrained zoo root
 
     def __post_init__(self):
         if self.attack not in _ATTACK_SURFACES:
