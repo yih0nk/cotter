@@ -51,7 +51,7 @@ Or from source with [Poetry](https://python-poetry.org/):
 git clone https://github.com/yih0nk/cotter.git
 cd cotter
 poetry install
-poetry run pytest   # 316 tests, unit + real-MuJoCo integration
+poetry run pytest   # 340 tests, unit + real-MuJoCo integration
 ```
 
 ## Quickstart (CLI)
@@ -421,8 +421,28 @@ Trained adversaries are expensive and specific to what they attack, so
 adversarial section and the first run trains and stores the attacker;
 later runs on the same victim reuse it instead of retraining. The victim
 hash is taken over the policy artifact (or its parameter tensors), so a
-retrained victim never silently reuses a stale adversary. A hosted zoo
-of pretrained expert adversaries is the planned paid tier.
+retrained victim never silently reuses a stale adversary.
+
+### Pretrained adversaries (transfer attacks)
+
+`cotter.zoo.PretrainedZoo` is a different registry: keyed by **robot
+class** — `(robot_class, env_id, epsilon, attack)` — not by victim. An
+adversary trained per class transfers to *any* compatible victim on that
+env (adversarial policies exploit the environment, not victim-specific
+weights), so you can attack your own policy without training one:
+
+```yaml
+adversarial:
+  epsilon: 0.05
+  pretrained: franka-panda    # transfer-attack from the pretrained zoo
+```
+
+The run loads the class adversary, checks it matches the env, and reports
+a `pretrained_<class>_<surface>` category (a missing class or incompatible
+adversary is skipped, never fatal). Inspect the registry with
+`cotter pretrained list`. The open engine ships the mechanism
+(`register` / `transfer_attack`); a hosted library of GPU-trained experts
+per robot class is the paid tier.
 
 ## Compliance layer (paid tier)
 
@@ -455,7 +475,7 @@ cotter/
 │   └── factory.py       # picklable env factory for parallel rollouts
 ├── report.py            # TestReport: console summary + JSON (results container only)
 ├── render.py            # self-contained HTML rendering of a TestReport (free tier)
-├── zoo/                 # adversary registry keyed by (env, victim, epsilon)
+├── zoo/                 # adversary registries: victim-keyed cache + class-keyed pretrained
 ├── compliance/          # paid-tier regulatory document stub (license required)
 └── tests/
     ├── sprt.py          # Wald's sequential probability ratio test (+ CI)

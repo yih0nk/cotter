@@ -25,6 +25,12 @@
   `adversarial.attack: observation | action | both`. Adds
   `run_action_adversarial_test`, `train_action_adversary`,
   `ActionPerturbationEnv`, and the action adversaries to the public API.
+- **Pretrained adversary zoo + transfer attacks.** `cotter.zoo.PretrainedZoo`
+  registers adversaries by **robot class** (not victim), and
+  `transfer_attack` applies one to any compatible victim it never trained
+  on. Enable in a config with `adversarial.pretrained: <robot-class>`;
+  inspect with `cotter pretrained list` / `prune`. This is the open
+  mechanism behind the pretrained-expert-per-robot-class tier.
 
 ## 0.2.0
 
