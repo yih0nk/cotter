@@ -251,6 +251,35 @@ def run_from_config(
                     f"{action_learned.clean_success_rate:.0%} clean -> "
                     f"{action_learned.adversarial_success_rate:.0%} perturbed")
 
+        if a.pretrained:
+            from cotter.tests.transfer import IncompatibleAdversaryError, transfer_attack
+            from cotter.zoo.pretrained import PretrainedZoo
+
+            pz = PretrainedZoo(a.pretrained_root) if a.pretrained_root else PretrainedZoo()
+            surfaces = ("observation", "action") if a.attack == "both" else (a.attack,)
+            for surface in surfaces:
+                pretrained = pz.load(a.pretrained, cfg.env, a.epsilon, attack=surface)
+                if pretrained is None:
+                    log(f"[cotter]   no pretrained '{a.pretrained}' {surface} adversary for "
+                        f"{cfg.env} eps={a.epsilon}; skipping")
+                    continue
+                try:
+                    transfer = transfer_attack(
+                        pretrained, policy, env, success_fn, attack=surface,
+                        epsilon=a.epsilon, n_episodes=a.n_episodes,
+                        min_success_rate=a.min_success_rate,
+                        base_seed=cfg.base_seed + _ADV_SEED, robot_class=a.pretrained,
+                        n_workers=a.n_workers, env_factory=factory,
+                    )
+                except IncompatibleAdversaryError as exc:
+                    log(f"[cotter]   pretrained '{a.pretrained}' {surface} adversary "
+                        f"incompatible: {exc}")
+                    continue
+                report.add_adversarial(transfer, name=f"pretrained_{a.pretrained}_{surface}")
+                log(f"[cotter]   pretrained '{a.pretrained}' ({surface}) transfer: "
+                    f"{transfer.clean_success_rate:.0%} clean -> "
+                    f"{transfer.adversarial_success_rate:.0%} perturbed")
+
     if cfg.report is not None:
         path = report.to_json(cfg.report)
         log(f"[cotter] JSON report written to {path}")

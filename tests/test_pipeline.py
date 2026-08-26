@@ -124,6 +124,49 @@ class TestRunFromConfig:
         assert "random_baseline" in names
         assert "action_random_baseline" in names
 
+    def test_pretrained_transfer_attack(self, tmp_path):
+        import gymnasium as gym
+
+        from cotter.policy import load_policy
+        from cotter.tests.adversarial import train_adversary
+        from cotter.zoo.pretrained import PretrainedZoo
+        from stable_baselines3 import PPO
+
+        # register a pretrained adversary for the "pendulum" class
+        train_env = gym.make("InvertedPendulum-v5")
+        victim = load_policy(str(VICTIM), train_env, algo=PPO)
+        adv = train_adversary(victim, train_env, epsilon=0.1, timesteps=64, seed=0)
+        PretrainedZoo(tmp_path).register(adv, "pendulum", "InvertedPendulum-v5")
+        train_env.close()
+
+        cfg = parse_config({
+            "env": "InvertedPendulum-v5",
+            "success": {"type": "min_length", "value": 10},
+            "adversarial": {
+                "epsilon": 0.1, "n_episodes": 2, "train": False,
+                "pretrained": "pendulum", "pretrained_root": str(tmp_path),
+            },
+        })
+        report = run_from_config(VICTIM, cfg, log=lambda m: None)
+        names = [r.name for r in report.results]
+        assert "pretrained_pendulum_observation" in names
+        entry = next(r for r in report.results if r.name == "pretrained_pendulum_observation")
+        assert "pretrained transfer attack" in entry.data["notes"]
+
+    def test_pretrained_missing_class_is_skipped(self, tmp_path):
+        cfg = parse_config({
+            "env": "InvertedPendulum-v5",
+            "success": {"type": "min_length", "value": 10},
+            "adversarial": {
+                "epsilon": 0.1, "n_episodes": 2, "train": False,
+                "pretrained": "nonexistent", "pretrained_root": str(tmp_path),
+            },
+        })
+        report = run_from_config(VICTIM, cfg, log=lambda m: None)
+        # no pretrained entry, and the run still completes (random baseline present)
+        assert not any(r.name.startswith("pretrained_") for r in report.results)
+        assert any(r.name == "random_baseline" for r in report.results)
+
     def test_parallel_workers_match_serial_report(self):
         # Safety + regression with n_workers > 1 must produce the same
         # numbers as the serial (default) config on shared base_seed.
