@@ -114,6 +114,18 @@ def build_parser() -> argparse.ArgumentParser:
     zoo_list = zoo_sub.add_parser("list", help="list cached adversaries")
     zoo_list.add_argument("--env", default=None, help="filter by env id")
     zoo_sub.add_parser("prune", help="remove entries whose artifact files are missing")
+
+    pretrained = subparsers.add_parser(
+        "pretrained", help="inspect the pretrained (class-keyed) adversary zoo"
+    )
+    pretrained.add_argument(
+        "--root", type=Path, default=None,
+        help="pretrained zoo root (default ~/.cotter/pretrained)",
+    )
+    p_sub = pretrained.add_subparsers(dest="pretrained_command", required=True)
+    p_list = p_sub.add_parser("list", help="list pretrained adversaries")
+    p_list.add_argument("--robot-class", default=None, help="filter by robot class")
+    p_sub.add_parser("prune", help="remove entries whose artifact files are missing")
     return parser
 
 
@@ -238,6 +250,40 @@ def cmd_verify(args: argparse.Namespace) -> int:
     return 0 if result.ok else 1
 
 
+def cmd_pretrained(args: argparse.Namespace) -> int:
+    from cotter.zoo.pretrained import PretrainedZoo
+
+    zoo = PretrainedZoo(args.root) if args.root else PretrainedZoo()
+
+    if args.pretrained_command == "list":
+        entries = zoo.entries(args.robot_class)
+        scope = f" for class '{args.robot_class}'" if args.robot_class else ""
+        if not entries:
+            print(f"no pretrained adversaries{scope} (zoo root: {zoo.root})")
+            return 0
+        print(f"{len(entries)} pretrained adversar{'y' if len(entries) == 1 else 'ies'}"
+              f"{scope} (zoo root: {zoo.root}):")
+        for e in entries:
+            missing = "" if (zoo.root / e.path).exists() else "  [MISSING ARTIFACT]"
+            print(f"  {e.robot_class}  {e.env_id}  {e.attack}  eps={e.epsilon:g}  "
+                  f"{e.algo}  {e.created_at}{missing}")
+            print(f"      {e.path}")
+        return 0
+
+    if args.pretrained_command == "prune":
+        removed = zoo.prune()
+        if not removed:
+            print(f"nothing to prune (zoo root: {zoo.root})")
+            return 0
+        print(f"pruned {len(removed)} entr{'y' if len(removed) == 1 else 'ies'} "
+              f"with missing artifacts:")
+        for e in removed:
+            print(f"  {e.robot_class}  {e.env_id}  {e.attack}  eps={e.epsilon:g}")
+        return 0
+
+    raise AssertionError(f"unhandled pretrained command {args.pretrained_command}")  # pragma: no cover
+
+
 def cmd_zoo(args: argparse.Namespace) -> int:
     from cotter.zoo import AdversaryZoo
 
@@ -282,6 +328,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_verify(args)
     if args.command == "zoo":
         return cmd_zoo(args)
+    if args.command == "pretrained":
+        return cmd_pretrained(args)
     if args.command == "list-envs":
         return cmd_list_envs(args)
     raise AssertionError(f"unhandled command {args.command}")  # pragma: no cover
