@@ -50,6 +50,13 @@ from cotter.tests.action_adversarial import (
     run_action_adversarial_test,
     train_action_adversary,
 )
+from cotter.tests.transfer import (
+    IncompatibleAdversaryError,
+    check_adversary_compatible,
+    transfer_attack,
+)
+from cotter.zoo import AdversaryZoo, ZooEntry, victim_hash
+from cotter.zoo.pretrained import PretrainedEntry, PretrainedZoo
 from cotter.tests.regression import (
     RegressionDecision,
     RegressionResult,
@@ -138,6 +145,15 @@ __all__ = [
     "run_action_adversarial_test",
     "train_action_adversary",
     "get_action_adversary",
+    # transfer attacks + zoo
+    "transfer_attack",
+    "check_adversary_compatible",
+    "IncompatibleAdversaryError",
+    "AdversaryZoo",
+    "ZooEntry",
+    "victim_hash",
+    "PretrainedZoo",
+    "PretrainedEntry",
     # report
     "TestReport",
     "__version__",
