@@ -167,6 +167,27 @@ class TestRunFromConfig:
         assert not any(r.name.startswith("pretrained_") for r in report.results)
         assert any(r.name == "random_baseline" for r in report.results)
 
+    def test_iso_ts_15066_pfl_category(self):
+        cfg = parse_config({
+            "env": "InvertedPendulum-v5",
+            "success": {"type": "min_length", "value": 10},
+            "iso_ts_15066": {
+                "m_robot": 5.0,
+                # the CotterWrapper exposes joint velocities; used here as the
+                # TCP-speed stand-in to exercise the check end-to-end.
+                "speed_key": "cotter/joint_velocities",
+                "n_episodes": 2,
+                "regions": ["chest", "skull_forehead"],
+            },
+        })
+        report = run_from_config(VICTIM, cfg, log=lambda m: None)
+        pfl = next((r for r in report.results if r.name == "iso_ts_15066_pfl"), None)
+        assert pfl is not None
+        assert pfl.category == "safety"
+        assert pfl.data["binding_region"] in ("chest", "skull_forehead")
+        assert len(pfl.data["region_limits"]) == 2
+        assert "ISO/TS 15066" in pfl.summary
+
     def test_parallel_workers_match_serial_report(self):
         # Safety + regression with n_workers > 1 must produce the same
         # numbers as the serial (default) config on shared base_seed.

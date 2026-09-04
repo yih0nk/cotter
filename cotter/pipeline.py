@@ -36,7 +36,7 @@ from cotter.tests.sprt import run_sprt
 
 # per-category seed offsets, kept stable so results are comparable across
 # configs that enable different category subsets
-_PERF_SEED, _SAFETY_SEED, _REGRESSION_SEED, _ADV_SEED = 100, 200, 300, 400
+_PERF_SEED, _SAFETY_SEED, _REGRESSION_SEED, _ADV_SEED, _ISO_SEED = 100, 200, 300, 400, 500
 
 
 def resolve_algo(name: str):
@@ -167,6 +167,28 @@ def run_from_config(
             limit = next(l.max_abs for l in s.limits if l.quantity == quantity)
             log(f"[cotter]   worst |{quantity}| = {worst:.4f} (limit {limit})")
         log(f"[cotter]   => {result.decision.value}")
+
+    if cfg.iso_ts_15066 is not None:
+        from cotter.tests.iso15066 import ISO_TS_15066_LIMITS, evaluate_pfl
+
+        iso = cfg.iso_ts_15066
+        regions = (
+            [ISO_TS_15066_LIMITS[n] for n in iso.regions]
+            if iso.regions
+            else list(ISO_TS_15066_LIMITS.values())
+        )
+        log(f"[cotter] ISO/TS 15066 PFL: {len(regions)} region(s), {iso.contact_type}, "
+            f"m_robot={iso.m_robot} over {iso.n_episodes} episodes")
+        rollouts = dispatch(
+            policy, iso.n_episodes, base=cfg.base_seed + _ISO_SEED,
+            record_infos=True, n_workers=iso.n_workers,
+        )
+        pfl = evaluate_pfl(
+            rollouts.episode_infos, regions, iso.m_robot, iso.speed_key, iso.contact_type
+        )
+        report.add_pfl(pfl)
+        log(f"[cotter]   => {pfl.decision.value} (worst {pfl.worst_speed:.3f} m/s, "
+            f"binding region '{pfl.binding_region}')")
 
     if cfg.regression is not None:
         r = cfg.regression
