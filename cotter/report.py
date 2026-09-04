@@ -15,6 +15,7 @@ from pathlib import Path
 
 import numpy as np
 
+from cotter.tests.iso15066 import PFLDecision, PFLResult
 from cotter.tests.regression import RegressionDecision, RegressionResult
 from cotter.tests.safety import SafetyDecision, SafetyResult
 from cotter.tests.sprt import SPRTDecision, SPRTResult
@@ -124,6 +125,24 @@ class TestReport:
                 f"step {v.timestep}: |{v.quantity}|={abs(v.value):.3f} > {v.limit}"
             )
         self.add("safety", name, result.decision == SafetyDecision.PASS, summary, result.to_dict())
+
+    def add_pfl(self, result: PFLResult, name: str = "iso_ts_15066_pfl") -> None:
+        binding = next((r for r in result.region_limits if r.name == result.binding_region), None)
+        binding_limit = binding.speed_limit if binding else float("nan")
+        if result.decision == PFLDecision.PASS:
+            summary = (
+                f"PASS: TCP speed within ISO/TS 15066 {result.contact_type} limits "
+                f"(worst {result.worst_speed:.3f} m/s; binding '{result.binding_region}' "
+                f"limit {binding_limit:.3f} m/s) over {result.n_timesteps_checked} timesteps"
+            )
+        else:
+            v = result.violations[0]
+            summary = (
+                f"FAIL: {result.n_violations} ISO/TS 15066 exceedance(s); first at trial "
+                f"{v.trial} step {v.timestep}: {v.speed:.3f} m/s > {v.speed_limit:.3f} m/s "
+                f"for '{v.region}' (implied {v.implied_force:.0f} N > {v.force_limit:.0f} N)"
+            )
+        self.add("safety", name, result.decision == PFLDecision.PASS, summary, result.to_dict())
 
     def add_regression(self, result: RegressionResult, name: str = "vs_baseline") -> None:
         self.add(

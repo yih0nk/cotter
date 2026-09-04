@@ -135,3 +135,24 @@ class TestOutput:
         assert "COTTER TEST REPORT" in text
         for token in ("performance/", "safety/", "regression/", "OVERALL: FAIL"):
             assert token in text
+
+
+class TestPflAdapter:
+    def test_pfl_pass(self, report):
+        from cotter.tests.iso15066 import ISO_TS_15066_LIMITS as LIB, evaluate_pfl
+
+        infos = [[{"tcp_speed": 0.01}, {"tcp_speed": 0.02}]]
+        report.add_pfl(evaluate_pfl(infos, [LIB["chest"]], 5.0, "tcp_speed"))
+        r = report.results[0]
+        assert r.category == "safety"
+        assert r.passed is True
+        assert "ISO/TS 15066" in r.summary and "PASS" in r.summary
+
+    def test_pfl_fail_reports_region_and_force(self, report):
+        from cotter.tests.iso15066 import ISO_TS_15066_LIMITS as LIB, evaluate_pfl
+
+        report.add_pfl(evaluate_pfl([[{"tcp_speed": 5.0}]], [LIB["skull_forehead"]], 5.0, "tcp_speed"))
+        r = report.results[0]
+        assert r.passed is False
+        assert "skull_forehead" in r.summary and "N >" in r.summary
+        assert not report.overall_passed
