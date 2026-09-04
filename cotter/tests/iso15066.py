@@ -29,7 +29,11 @@ Transient (short, dynamic impact) force limits are ~2x the quasi-static
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Mapping, Sequence
+
+import numpy as np
 
 
 @dataclass(frozen=True)
@@ -114,3 +118,172 @@ def max_relative_speed(force_limit: float, spring_constant_n_per_mm: float, mu: 
     """Max relative contact speed keeping the peak force within ``force_limit`` (m/s)."""
     k = spring_constant_n_per_mm * 1000.0
     return force_limit / math.sqrt(k * mu)
+
+
+_CONTACT_TYPES = ("transient", "quasi_static")
+
+
+class PFLDecision(str, Enum):
+    PASS = "PASS"
+    FAIL = "FAIL"
+
+
+@dataclass(frozen=True)
+class RegionLimit:
+    """The speed/force limit computed for one region against a given robot mass."""
+
+    name: str
+    force_limit: float  # N (transient or quasi-static, per contact_type)
+    speed_limit: float  # m/s, the max permissible relative contact speed
+    human_mass: float  # kg
+
+    def to_dict(self) -> dict:
+        return {
+            "region": self.name,
+            "force_limit": self.force_limit,
+            "speed_limit": self.speed_limit,
+            "human_mass": self.human_mass,
+        }
+
+
+@dataclass(frozen=True)
+class PFLViolation:
+    trial: int
+    timestep: int
+    region: str
+    speed: float
+    speed_limit: float
+    implied_force: float
+    force_limit: float
+
+    def to_dict(self) -> dict:
+        return {
+            "trial": self.trial,
+            "timestep": self.timestep,
+            "region": self.region,
+            "speed": self.speed,
+            "speed_limit": self.speed_limit,
+            "implied_force": self.implied_force,
+            "force_limit": self.force_limit,
+        }
+
+
+@dataclass
+class PFLResult:
+    decision: PFLDecision
+    m_robot: float
+    contact_type: str
+    speed_key: str
+    region_limits: list[RegionLimit]
+    n_trials: int
+    n_timesteps_checked: int
+    worst_speed: float = 0.0
+    binding_region: str = ""  # the most restrictive region (lowest speed limit)
+    violations: list[PFLViolation] = field(default_factory=list)
+
+    @property
+    def n_violations(self) -> int:
+        return len(self.violations)
+
+    def to_dict(self) -> dict:
+        return {
+            "decision": self.decision.value,
+            "m_robot": self.m_robot,
+            "contact_type": self.contact_type,
+            "speed_key": self.speed_key,
+            "binding_region": self.binding_region,
+            "worst_speed": self.worst_speed,
+            "region_limits": [r.to_dict() for r in self.region_limits],
+            "n_trials": self.n_trials,
+            "n_timesteps_checked": self.n_timesteps_checked,
+            "n_violations": self.n_violations,
+            "violations": [v.to_dict() for v in self.violations[:50]],
+        }
+
+
+def region_limits(
+    regions: Sequence[BodyRegion], m_robot: float, contact_type: str = "transient"
+) -> list[RegionLimit]:
+    """Compute the permissible contact-speed limit for each region."""
+    if contact_type not in _CONTACT_TYPES:
+        raise ValueError(f"contact_type must be one of {list(_CONTACT_TYPES)}; got {contact_type!r}")
+    out: list[RegionLimit] = []
+    for r in regions:
+        mu = reduced_mass(m_robot, r.human_mass)
+        force_limit = r.transient_force if contact_type == "transient" else r.quasi_static_force
+        out.append(
+            RegionLimit(
+                name=r.name,
+                force_limit=force_limit,
+                speed_limit=max_relative_speed(force_limit, r.spring_constant, mu),
+                human_mass=r.human_mass,
+            )
+        )
+    return out
+
+
+def evaluate_pfl(
+    episode_infos: Sequence[Sequence[Mapping]],
+    regions: Sequence[BodyRegion],
+    m_robot: float,
+    speed_key: str,
+    contact_type: str = "transient",
+) -> PFLResult:
+    """Check TCP speed against ISO/TS 15066 per-region limits over rollouts.
+
+    ``speed_key`` names the per-step info entry holding the robot's TCP
+    linear velocity (scalar speed or a velocity vector — its L2 norm is
+    used). For each region, a collision at the TCP speed would exceed the
+    region's force limit iff the speed exceeds that region's permissible
+    contact speed; any such timestep fails the check. Raises ``KeyError``
+    if ``speed_key`` is absent (a misconfiguration must not silently pass).
+    """
+    if not regions:
+        raise ValueError("evaluate_pfl called with no regions configured")
+    limits = region_limits(regions, m_robot, contact_type)
+    # cache mu per region for the implied-force computation
+    mus = {r.name: reduced_mass(m_robot, r.human_mass) for r in regions}
+    ks = {r.name: r.spring_constant for r in regions}
+    binding = min(limits, key=lambda rl: rl.speed_limit)
+
+    violations: list[PFLViolation] = []
+    worst_speed = 0.0
+    n_steps = 0
+
+    for trial, steps in enumerate(episode_infos):
+        for timestep, info in enumerate(steps):
+            if speed_key not in info:
+                raise KeyError(
+                    f"ISO/TS 15066 check references speed_key '{speed_key}' but the step "
+                    f"info only contains {sorted(info.keys())}. Expose the TCP linear "
+                    "velocity under this key."
+                )
+            n_steps += 1
+            speed = float(np.linalg.norm(np.atleast_1d(np.asarray(info[speed_key], dtype=float))))
+            worst_speed = max(worst_speed, speed)
+            for rl in limits:
+                if speed > rl.speed_limit:
+                    violations.append(
+                        PFLViolation(
+                            trial=trial,
+                            timestep=timestep,
+                            region=rl.name,
+                            speed=speed,
+                            speed_limit=rl.speed_limit,
+                            implied_force=peak_force(ks[rl.name], mus[rl.name], speed),
+                            force_limit=rl.force_limit,
+                        )
+                    )
+
+    return PFLResult(
+        decision=PFLDecision.FAIL if violations else PFLDecision.PASS,
+        m_robot=m_robot,
+        contact_type=contact_type,
+        speed_key=speed_key,
+        region_limits=limits,
+        n_trials=len(episode_infos),
+        n_timesteps_checked=n_steps,
+        worst_speed=worst_speed,
+        binding_region=binding.name,
+        violations=violations,
+    )

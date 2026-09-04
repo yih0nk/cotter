@@ -62,3 +62,64 @@ class TestPhysics:
         soft = max_relative_speed(140, 25, mu)   # chest-like: soft
         stiff = max_relative_speed(140, 150, mu)  # skull-like: stiff
         assert stiff < soft  # a stiffer contact reaches the force limit at lower speed
+
+
+from cotter.tests.iso15066 import (
+    ISO_TS_15066_LIMITS as LIB,
+    PFLDecision,
+    evaluate_pfl,
+    region_limits,
+)
+
+
+def _infos(speeds, key="tcp_speed"):
+    """One trial: a list of per-step info dicts with the given speeds."""
+    return [[{key: s} for s in speeds]]
+
+
+class TestRegionLimits:
+    def test_binding_is_most_restrictive(self):
+        regions = [LIB["chest"], LIB["skull_forehead"]]
+        limits = region_limits(regions, m_robot=5.0)
+        # skull is stiffer -> lower speed limit -> binding
+        binding = min(limits, key=lambda r: r.speed_limit)
+        assert binding.name == "skull_forehead"
+
+    def test_quasi_static_lower_than_transient(self):
+        r = [LIB["chest"]]
+        qs = region_limits(r, 5.0, "quasi_static")[0].speed_limit
+        tr = region_limits(r, 5.0, "transient")[0].speed_limit
+        assert qs < tr  # quasi-static force limit is half -> lower speed
+
+
+class TestEvaluatePfl:
+    def test_pass_when_below_limits(self):
+        result = evaluate_pfl(_infos([0.01, 0.02, 0.01]), [LIB["chest"]], 5.0, "tcp_speed")
+        assert result.decision == PFLDecision.PASS
+        assert result.n_violations == 0
+        assert result.binding_region == "chest"
+
+    def test_fail_when_over_limit(self):
+        # a large speed exceeds every region's limit
+        result = evaluate_pfl(_infos([5.0]), [LIB["chest"], LIB["skull_forehead"]], 5.0, "tcp_speed")
+        assert result.decision == PFLDecision.FAIL
+        assert result.n_violations == 2  # both regions violated at that step
+        assert result.worst_speed == 5.0
+
+    def test_implied_force_exceeds_limit_on_violation(self):
+        result = evaluate_pfl(_infos([5.0]), [LIB["chest"]], 5.0, "tcp_speed")
+        v = result.violations[0]
+        assert v.implied_force > v.force_limit
+
+    def test_vector_speed_uses_norm(self):
+        infos = [[{"tcp_vel": [3.0, 4.0]}]]  # norm 5.0
+        result = evaluate_pfl(infos, [LIB["chest"]], 5.0, "tcp_vel")
+        assert result.worst_speed == pytest.approx(5.0)
+
+    def test_missing_speed_key_raises(self):
+        with pytest.raises(KeyError):
+            evaluate_pfl([[{"other": 1.0}]], [LIB["chest"]], 5.0, "tcp_speed")
+
+    def test_no_regions_raises(self):
+        with pytest.raises(ValueError):
+            evaluate_pfl(_infos([0.1]), [], 5.0, "tcp_speed")
