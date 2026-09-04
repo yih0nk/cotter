@@ -31,6 +31,12 @@
   on. Enable in a config with `adversarial.pretrained: <robot-class>`;
   inspect with `cotter pretrained list` / `prune`. This is the open
   mechanism behind the pretrained-expert-per-robot-class tier.
+- **ISO/TS 15066 power-and-force-limiting check.** A physics-grounded
+  collaborative-robot safety check: per-body-region force/pressure limits
+  and the collision model (`F = v·√(k·μ)`) back-solve the maximum
+  permissible TCP contact speed, flagged per timestep. Configure with an
+  `iso_ts_15066` section; limits (`cotter.ISO_TS_15066_LIMITS`) ship as
+  editable published approximations.
 
 ## 0.2.0
 

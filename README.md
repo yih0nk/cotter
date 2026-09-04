@@ -15,7 +15,7 @@ just honest, reproducible testing:
 | Category | Question | Method |
 |---|---|---|
 | **Performance** | Does it succeed at the task? | Wald's sequential probability ratio test (SPRT) — stops sampling as soon as the evidence is decisive |
-| **Safety** | Does it ever exceed a hard physical limit? | Per-timestep checks on joint velocities / actuator forces / contacts; a single violation anywhere fails, no averaging |
+| **Safety** | Does it ever exceed a hard physical limit? | Per-timestep checks on joint velocities / actuator forces / contacts; a single violation anywhere fails, no averaging. Includes an **ISO/TS 15066** power-and-force-limiting check (per-body-region contact-speed limits) |
 | **Regression** | Did the new version break behavior? | Matched pairs on a shared seed sequence, exact McNemar (binary) and Wilcoxon signed-rank (continuous) |
 | **Adversarial** | How bad is the worst case? | A PPO adversary trained to perturb the policy's *observations* (sensor attack) or *actions* (actuator attack) within an L∞ budget, plus a guaranteed random-noise baseline |
 
@@ -51,7 +51,7 @@ Or from source with [Poetry](https://python-poetry.org/):
 git clone https://github.com/yih0nk/cotter.git
 cd cotter
 poetry install
-poetry run pytest   # 340 tests, unit + real-MuJoCo integration
+poetry run pytest   # 366 tests, unit + real-MuJoCo integration
 ```
 
 ## Quickstart (CLI)
@@ -111,6 +111,32 @@ The adversarial category attacks either surface, set by
 
 Each surface runs a guaranteed random baseline and, when `train: true`, a
 PPO adversary trained against the frozen victim.
+
+### ISO/TS 15066 power-and-force-limiting (PFL)
+
+Collaborative-robot safety comes down to a concrete numeric question: at
+its speed, would a contact exceed the human injury threshold for the body
+region it might hit? Cotter checks it directly. Declare an
+`iso_ts_15066` section:
+
+```yaml
+iso_ts_15066:
+  m_robot: 5.0                 # effective robot mass at the TCP (kg), incl. payload
+  speed_key: cotter/tcp_speed  # per-step info key holding TCP linear velocity
+  contact_type: transient      # transient (dynamic) or quasi_static (clamping)
+  regions: [chest, hand_finger, skull_forehead]   # omit for the full library
+```
+
+For each region, Cotter back-solves the maximum permissible contact speed
+from the ISO/TS 15066 collision model — `F = v·√(k·μ)`, reduced mass
+`1/μ = 1/m_robot + 1/m_human` — and flags any timestep whose TCP speed
+would produce a force over that region's limit, reporting the binding
+(most restrictive) region and the implied contact force.
+
+> The bundled per-region limits (`cotter.ISO_TS_15066_LIMITS`) are the
+> widely-published approximations and are **user-editable** — confirm them
+> against the purchased ISO/TS 15066 before relying on them for
+> certification.
 
 ### Reports (JSON + HTML + JUnit + Markdown)
 
