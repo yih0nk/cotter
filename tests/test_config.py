@@ -161,3 +161,43 @@ class TestLoadConfig:
         bad.write_text("success: {type: min_length, value: 1}\n")
         with pytest.raises(ConfigError, match="bad.yaml"):
             load_config(bad)
+
+
+class TestISO15066Config:
+    def test_parses_section(self):
+        cfg = parse_config({
+            "env": "X-v1", "success": {"type": "min_return", "value": 1},
+            "iso_ts_15066": {
+                "m_robot": 5.0, "speed_key": "cotter/tcp_speed",
+                "regions": ["chest", "hand_finger"],
+            },
+        })
+        assert cfg.iso_ts_15066.m_robot == 5.0
+        assert cfg.iso_ts_15066.speed_key == "cotter/tcp_speed"
+        assert cfg.iso_ts_15066.contact_type == "transient"  # default
+        assert cfg.iso_ts_15066.regions == ["chest", "hand_finger"]
+
+    def test_defaults_none_when_absent(self):
+        cfg = parse_config({"env": "X-v1", "success": {"type": "min_return", "value": 1}})
+        assert cfg.iso_ts_15066 is None
+
+    def test_missing_required_field_rejected(self):
+        with pytest.raises(ConfigError):
+            parse_config({
+                "env": "X-v1", "success": {"type": "min_return", "value": 1},
+                "iso_ts_15066": {"m_robot": 5.0},  # no speed_key
+            })
+
+    def test_unknown_region_rejected(self):
+        with pytest.raises(ConfigError, match="unknown iso_ts_15066 regions"):
+            parse_config({
+                "env": "X-v1", "success": {"type": "min_return", "value": 1},
+                "iso_ts_15066": {"m_robot": 5.0, "speed_key": "s", "regions": ["elbow"]},
+            })
+
+    def test_bad_contact_type_rejected(self):
+        with pytest.raises(ConfigError, match="contact_type"):
+            parse_config({
+                "env": "X-v1", "success": {"type": "min_return", "value": 1},
+                "iso_ts_15066": {"m_robot": 5.0, "speed_key": "s", "contact_type": "static"},
+            })

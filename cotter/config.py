@@ -25,6 +25,12 @@ Example::
       baseline: artifacts/victim_ppo_inverted_pendulum.zip
       n_pairs: 30
       alpha: 0.05
+    iso_ts_15066:
+      m_robot: 5.0
+      speed_key: cotter/tcp_speed
+      contact_type: transient
+      n_episodes: 20
+      regions: [chest, hand_finger, skull_forehead]
     adversarial:
       epsilon: 0.07
       n_episodes: 20
@@ -103,6 +109,33 @@ class AdversarialConfig:
 
 
 @dataclass
+class ISO15066Config:
+    m_robot: float  # effective robot mass at the TCP (kg), including payload
+    speed_key: str  # per-step info key holding the TCP linear velocity (scalar or vector)
+    contact_type: str = "transient"  # transient | quasi_static
+    n_episodes: int = 20
+    regions: list[str] = field(default_factory=list)  # body-region names; empty = all
+    n_workers: int = 1
+
+    def __post_init__(self):
+        from cotter.tests.iso15066 import ISO_TS_15066_LIMITS
+
+        if self.m_robot <= 0:
+            raise ValueError(f"iso_ts_15066.m_robot must be positive; got {self.m_robot}")
+        if self.contact_type not in ("transient", "quasi_static"):
+            raise ValueError(
+                f"iso_ts_15066.contact_type must be 'transient' or 'quasi_static'; "
+                f"got {self.contact_type!r}"
+            )
+        unknown = [r for r in self.regions if r not in ISO_TS_15066_LIMITS]
+        if unknown:
+            raise ValueError(
+                f"unknown iso_ts_15066 regions {unknown}; available: "
+                f"{sorted(ISO_TS_15066_LIMITS)}"
+            )
+
+
+@dataclass
 class RunConfig:
     env: str
     success: dict
@@ -113,6 +146,7 @@ class RunConfig:
     safety: SafetyConfig | None = None
     regression: RegressionConfig | None = None
     adversarial: AdversarialConfig | None = None
+    iso_ts_15066: ISO15066Config | None = None
     report: Path | None = None
     report_html: Path | None = None
     report_junit: Path | None = None
@@ -124,7 +158,7 @@ class RunConfig:
 
 _KNOWN_TOP_KEYS = {
     "env", "algo", "base_seed", "backend", "success",
-    "performance", "safety", "regression", "adversarial",
+    "performance", "safety", "regression", "adversarial", "iso_ts_15066",
     "report", "report_html", "report_junit", "report_md",
 }
 
@@ -195,6 +229,7 @@ def parse_config(data: dict, config_dir: Path | None = None) -> RunConfig:
         safety=_section(data, "safety", SafetyConfig, limits=_parse_limits),
         regression=_section(data, "regression", RegressionConfig, baseline=resolve),
         adversarial=_section(data, "adversarial", AdversarialConfig),
+        iso_ts_15066=_section(data, "iso_ts_15066", ISO15066Config),
         report=resolve(data["report"]) if "report" in data else None,
         report_html=resolve(data["report_html"]) if "report_html" in data else None,
         report_junit=resolve(data["report_junit"]) if "report_junit" in data else None,
