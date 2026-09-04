@@ -55,6 +55,18 @@ from cotter.tests.transfer import (
     check_adversary_compatible,
     transfer_attack,
 )
+from cotter.tests.iso15066 import (
+    ISO_TS_15066_LIMITS,
+    BodyRegion,
+    PFLResult,
+    body_region,
+    collision_energy,
+    evaluate_pfl,
+    max_relative_speed,
+    peak_force,
+    reduced_mass,
+    region_limits,
+)
 from cotter.zoo import AdversaryZoo, ZooEntry, victim_hash
 from cotter.zoo.pretrained import PretrainedEntry, PretrainedZoo
 from cotter.tests.regression import (
@@ -154,6 +166,17 @@ __all__ = [
     "victim_hash",
     "PretrainedZoo",
     "PretrainedEntry",
+    # ISO/TS 15066 power-and-force-limiting
+    "ISO_TS_15066_LIMITS",
+    "BodyRegion",
+    "body_region",
+    "reduced_mass",
+    "collision_energy",
+    "peak_force",
+    "max_relative_speed",
+    "region_limits",
+    "evaluate_pfl",
+    "PFLResult",
     # report
     "TestReport",
     "__version__",
