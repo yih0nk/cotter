@@ -156,3 +156,24 @@ class TestPflAdapter:
         assert r.passed is False
         assert "skull_forehead" in r.summary and "N >" in r.summary
         assert not report.overall_passed
+
+
+class TestStlAdapter:
+    def test_stl_pass(self, report):
+        from cotter.tests.stl import evaluate_stl
+
+        eps = [[{"speed": 0.5}, {"speed": 0.8}]]
+        report.add_stl(evaluate_stl(eps, "always (speed <= 1.5)", {"speed": {"key": "speed"}}, name="cap"))
+        r = report.results[0]
+        assert r.category == "specification"
+        assert r.name == "cap"
+        assert r.passed is True
+        assert "min robustness" in r.summary
+
+    def test_stl_fail_fails_report(self, report):
+        from cotter.tests.stl import evaluate_stl
+
+        eps = [[{"speed": 0.5}, {"speed": 2.0}]]
+        report.add_stl(evaluate_stl(eps, "always (speed <= 1.5)", {"speed": {"key": "speed"}}, name="cap"))
+        assert report.results[0].passed is False
+        assert not report.overall_passed

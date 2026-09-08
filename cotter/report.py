@@ -17,6 +17,7 @@ import numpy as np
 
 from cotter.tests.iso15066 import PFLDecision, PFLResult
 from cotter.tests.regression import RegressionDecision, RegressionResult
+from cotter.tests.stl import STLResult
 from cotter.tests.safety import SafetyDecision, SafetyResult
 from cotter.tests.sprt import SPRTDecision, SPRTResult
 
@@ -143,6 +144,10 @@ class TestReport:
                 f"for '{v.region}' (implied {v.implied_force:.0f} N > {v.force_limit:.0f} N)"
             )
         self.add("safety", name, result.decision == PFLDecision.PASS, summary, result.to_dict())
+
+    def add_stl(self, result: STLResult, name: str | None = None) -> None:
+        """File an STL spec result under the 'specification' category."""
+        self.add("specification", name or result.name, result.passed, result.summary(), result.to_dict())
 
     def add_regression(self, result: RegressionResult, name: str = "vs_baseline") -> None:
         self.add(
