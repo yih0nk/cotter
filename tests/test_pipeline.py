@@ -188,6 +188,25 @@ class TestRunFromConfig:
         assert len(pfl.data["region_limits"]) == 2
         assert "ISO/TS 15066" in pfl.summary
 
+    def test_stl_specs_category(self):
+        cfg = parse_config({
+            "env": "InvertedPendulum-v5",
+            "success": {"type": "min_length", "value": 10},
+            "stl": {
+                "n_episodes": 2,
+                "variables": {"jv0": {"key": "cotter/joint_velocities", "index": 0}},
+                "specs": [
+                    {"name": "bounded", "formula": "always (jv0 <= 100)"},
+                    {"name": "impossible", "formula": "always (jv0 <= -100)"},
+                ],
+            },
+        })
+        report = run_from_config(VICTIM, cfg, log=lambda m: None)
+        specs = {r.name: r for r in report.results if r.category == "specification"}
+        assert set(specs) == {"bounded", "impossible"}
+        assert specs["bounded"].passed is True
+        assert specs["impossible"].passed is False
+
     def test_parallel_workers_match_serial_report(self):
         # Safety + regression with n_workers > 1 must produce the same
         # numbers as the serial (default) config on shared base_seed.

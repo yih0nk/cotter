@@ -36,7 +36,9 @@ from cotter.tests.sprt import run_sprt
 
 # per-category seed offsets, kept stable so results are comparable across
 # configs that enable different category subsets
-_PERF_SEED, _SAFETY_SEED, _REGRESSION_SEED, _ADV_SEED, _ISO_SEED = 100, 200, 300, 400, 500
+_PERF_SEED, _SAFETY_SEED, _REGRESSION_SEED, _ADV_SEED, _ISO_SEED, _STL_SEED = (
+    100, 200, 300, 400, 500, 600
+)
 
 
 def resolve_algo(name: str):
@@ -189,6 +191,24 @@ def run_from_config(
         report.add_pfl(pfl)
         log(f"[cotter]   => {pfl.decision.value} (worst {pfl.worst_speed:.3f} m/s, "
             f"binding region '{pfl.binding_region}')")
+
+    if cfg.stl is not None:
+        from cotter.tests.stl import evaluate_stl
+
+        st = cfg.stl
+        log(f"[cotter] STL: {len(st.specs)} spec(s) over {st.n_episodes} episodes")
+        rollouts = dispatch(
+            policy, st.n_episodes, base=cfg.base_seed + _STL_SEED,
+            record_infos=True, n_workers=st.n_workers,
+        )
+        for spec in st.specs:
+            result = evaluate_stl(
+                rollouts.episode_infos, spec["formula"], st.variables,
+                name=spec["name"], threshold=st.threshold,
+            )
+            report.add_stl(result)
+            log(f"[cotter]   {result.name}: {'PASS' if result.passed else 'FAIL'} "
+                f"(min robustness {result.min_robustness:.4g})")
 
     if cfg.regression is not None:
         r = cfg.regression
