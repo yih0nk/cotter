@@ -25,6 +25,12 @@ Example::
       baseline: artifacts/victim_ppo_inverted_pendulum.zip
       n_pairs: 30
       alpha: 0.05
+    stl:
+      variables:
+        speed: cotter/tcp_speed
+      specs:
+        - name: speed_cap
+          formula: "always (speed <= 1.5)"
     iso_ts_15066:
       m_robot: 5.0
       speed_key: cotter/tcp_speed
@@ -136,6 +142,32 @@ class ISO15066Config:
 
 
 @dataclass
+class STLConfig:
+    specs: list  # each: {"name": str, "formula": str}
+    variables: dict  # name -> {"key": str, "index": int?} (a bare string is shorthand for {"key": ...})
+    n_episodes: int = 20
+    threshold: float = 0.0
+    n_workers: int = 1
+
+    def __post_init__(self):
+        if not self.specs:
+            raise ValueError("stl.specs must list at least one {name, formula}")
+        for s in self.specs:
+            if not isinstance(s, dict) or "name" not in s or "formula" not in s:
+                raise ValueError(f"each stl spec needs 'name' and 'formula'; got {s!r}")
+        if not self.variables:
+            raise ValueError("stl.variables must map at least one STL identifier to an info key")
+        # normalize bare-string variable shorthand to {"key": ...}
+        self.variables = {
+            name: ({"key": v} if isinstance(v, str) else dict(v))
+            for name, v in self.variables.items()
+        }
+        for name, v in self.variables.items():
+            if "key" not in v:
+                raise ValueError(f"stl variable '{name}' needs a 'key' (info dict key)")
+
+
+@dataclass
 class RunConfig:
     env: str
     success: dict
@@ -147,6 +179,7 @@ class RunConfig:
     regression: RegressionConfig | None = None
     adversarial: AdversarialConfig | None = None
     iso_ts_15066: ISO15066Config | None = None
+    stl: STLConfig | None = None
     report: Path | None = None
     report_html: Path | None = None
     report_junit: Path | None = None
@@ -158,7 +191,7 @@ class RunConfig:
 
 _KNOWN_TOP_KEYS = {
     "env", "algo", "base_seed", "backend", "success",
-    "performance", "safety", "regression", "adversarial", "iso_ts_15066",
+    "performance", "safety", "regression", "adversarial", "iso_ts_15066", "stl",
     "report", "report_html", "report_junit", "report_md",
 }
 
@@ -230,6 +263,7 @@ def parse_config(data: dict, config_dir: Path | None = None) -> RunConfig:
         regression=_section(data, "regression", RegressionConfig, baseline=resolve),
         adversarial=_section(data, "adversarial", AdversarialConfig),
         iso_ts_15066=_section(data, "iso_ts_15066", ISO15066Config),
+        stl=_section(data, "stl", STLConfig),
         report=resolve(data["report"]) if "report" in data else None,
         report_html=resolve(data["report_html"]) if "report_html" in data else None,
         report_junit=resolve(data["report_junit"]) if "report_junit" in data else None,

@@ -201,3 +201,37 @@ class TestISO15066Config:
                 "env": "X-v1", "success": {"type": "min_return", "value": 1},
                 "iso_ts_15066": {"m_robot": 5.0, "speed_key": "s", "contact_type": "static"},
             })
+
+
+class TestSTLConfig:
+    def test_parses_and_normalizes(self):
+        cfg = parse_config({
+            "env": "X-v1", "success": {"type": "min_return", "value": 1},
+            "stl": {
+                "variables": {"speed": "cotter/tcp_speed",
+                              "jv0": {"key": "cotter/joint_velocities", "index": 0}},
+                "specs": [{"name": "cap", "formula": "always (speed <= 1.5)"}],
+            },
+        })
+        assert cfg.stl.variables["speed"] == {"key": "cotter/tcp_speed"}  # string shorthand
+        assert cfg.stl.variables["jv0"] == {"key": "cotter/joint_velocities", "index": 0}
+        assert cfg.stl.specs[0]["name"] == "cap"
+        assert cfg.stl.threshold == 0.0  # default
+
+    def test_absent_is_none(self):
+        cfg = parse_config({"env": "X-v1", "success": {"type": "min_return", "value": 1}})
+        assert cfg.stl is None
+
+    def test_spec_without_formula_rejected(self):
+        with pytest.raises(ConfigError):
+            parse_config({
+                "env": "X-v1", "success": {"type": "min_return", "value": 1},
+                "stl": {"variables": {"s": "k"}, "specs": [{"name": "x"}]},
+            })
+
+    def test_empty_variables_rejected(self):
+        with pytest.raises(ConfigError):
+            parse_config({
+                "env": "X-v1", "success": {"type": "min_return", "value": 1},
+                "stl": {"variables": {}, "specs": [{"name": "x", "formula": "true"}]},
+            })
