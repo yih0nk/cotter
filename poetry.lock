@@ -13,6 +13,17 @@ files = [
 ]
 
 [[package]]
+name = "antlr4-python3-runtime"
+version = "4.7"
+description = "ANTLR 4.7 runtime for Python 3.4.0"
+optional = false
+python-versions = "*"
+groups = ["main", "dev"]
+files = [
+    {file = "antlr4-python3-runtime-4.7.tar.gz", hash = "sha256:df12103a041553807e510f315542d36f48e43bdb9c444c5195ae4247cde799c7"},
+]
+
+[[package]]
 name = "cloudpickle"
 version = "3.1.2"
 description = "Pickler class to extend the standard pickle.Pickler functionality"
@@ -1221,6 +1232,21 @@ files = [
 ]
 
 [[package]]
+name = "rtamt"
+version = "0.3.5"
+description = "Library for specification-based online monitoring."
+optional = false
+python-versions = ">=2.7"
+groups = ["main", "dev"]
+files = [
+    {file = "rtamt-0.3.5-py3-none-any.whl", hash = "sha256:d68e2c561be4d26ddc24126bc84f8225fb3f7c5bacf373d32eb6c1a906aea770"},
+    {file = "rtamt-0.3.5.tar.gz", hash = "sha256:ddc364ddff615dac8283cdde3e383e52e03c1e17d0e6719fa07f3929f59284a2"},
+]
+
+[package.dependencies]
+antlr4-python3-runtime = "4.7"
+
+[[package]]
 name = "scipy"
 version = "1.17.1"
 description = "Fundamental algorithms for scientific computing in Python"
@@ -1479,8 +1505,9 @@ type = ["pytest-mypy (>=1.0.1) ; platform_python_implementation != \"PyPy\""]
 
 [extras]
 onnx = ["onnxruntime"]
+stl = ["rtamt"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.12"
-content-hash = "872424636bf750411fdd619ea08505a27a20955a16dc73afb6efcf40a0a013fa"
+content-hash = "5eb7416248d588705c1c6f51019f98d2c52d4d1155b9b36873a48e687b6e8d92"
