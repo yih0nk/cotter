@@ -67,6 +67,12 @@ from cotter.tests.iso15066 import (
     reduced_mass,
     region_limits,
 )
+from cotter.tests.stl import (
+    STLResult,
+    episode_robustness,
+    evaluate_stl,
+    extract_dataset,
+)
 from cotter.zoo import AdversaryZoo, ZooEntry, victim_hash
 from cotter.zoo.pretrained import PretrainedEntry, PretrainedZoo
 from cotter.tests.regression import (
@@ -177,6 +183,11 @@ __all__ = [
     "region_limits",
     "evaluate_pfl",
     "PFLResult",
+    # STL specification testing
+    "evaluate_stl",
+    "episode_robustness",
+    "extract_dataset",
+    "STLResult",
     # report
     "TestReport",
     "__version__",
