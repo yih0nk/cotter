@@ -18,6 +18,7 @@ just honest, reproducible testing:
 | **Safety** | Does it ever exceed a hard physical limit? | Per-timestep checks on joint velocities / actuator forces / contacts; a single violation anywhere fails, no averaging. Includes an **ISO/TS 15066** power-and-force-limiting check (per-body-region contact-speed limits) |
 | **Regression** | Did the new version break behavior? | Matched pairs on a shared seed sequence, exact McNemar (binary) and Wilcoxon signed-rank (continuous) |
 | **Adversarial** | How bad is the worst case? | A PPO adversary trained to perturb the policy's *observations* (sensor attack) or *actions* (actuator attack) within an L∞ budget, plus a guaranteed random-noise baseline |
+| **Specification** | Does it meet a declared behavioral requirement? | Signal Temporal Logic (STL) specs scored by *quantitative robustness* per rollout — e.g. `always (speed <= 1.5)`, `eventually (dist_to_goal <= 0.05)` |
 
 Everything runs on CPU (developed on Apple Silicon; no CUDA anywhere in
 the stack).
@@ -51,7 +52,7 @@ Or from source with [Poetry](https://python-poetry.org/):
 git clone https://github.com/yih0nk/cotter.git
 cd cotter
 poetry install
-poetry run pytest   # 366 tests, unit + real-MuJoCo integration
+poetry run pytest   # 386 tests, unit + real-MuJoCo integration
 ```
 
 ## Quickstart (CLI)
@@ -111,6 +112,34 @@ The adversarial category attacks either surface, set by
 
 Each surface runs a guaranteed random baseline and, when `train: true`, a
 PPO adversary trained against the frozen victim.
+
+### Specifications (Signal Temporal Logic)
+
+Beyond the fixed categories, declare behavioral requirements in **Signal
+Temporal Logic** and Cotter scores each rollout by *quantitative
+robustness* — a signed margin (positive = satisfied, negative = violated,
+and by how much), not just pass/fail. Requires the `stl` extra
+(`pip install cotterbot[stl]`):
+
+```yaml
+stl:
+  n_episodes: 20
+  variables:
+    speed: cotter/tcp_speed                          # scalar info key
+    jv0:   {key: cotter/joint_velocities, index: 0}  # a vector component
+  threshold: 0.0            # min robustness required to pass (0 = the STL boundary)
+  specs:
+    - name: speed_cap
+      formula: "always (speed <= 1.5)"
+    - name: settles
+      formula: "eventually (speed <= 0.1)"
+```
+
+Each spec becomes a `specification`-category result reporting the worst
+(minimum) episode robustness. Signals are pulled from the per-step `info`
+dict by the `variables` map. STL operators (`always`, `eventually`,
+`until`, bounded `[a,b]`) are evaluated offline with
+[`rtamt`](https://github.com/nickovic/rtamt).
 
 ### ISO/TS 15066 power-and-force-limiting (PFL)
 

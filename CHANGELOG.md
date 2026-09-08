@@ -31,6 +31,13 @@
   on. Enable in a config with `adversarial.pretrained: <robot-class>`;
   inspect with `cotter pretrained list` / `prune`. This is the open
   mechanism behind the pretrained-expert-per-robot-class tier.
+- **Signal Temporal Logic (STL) specifications.** Declare behavioral
+  requirements (`always (speed <= 1.5)`, `eventually (dist <= 0.05)`) in an
+  `stl` config section and get a *quantitative robustness margin* per
+  rollout, filed under a new `specification` category. Signals are pulled
+  from per-step info by a variable map; evaluated offline with `rtamt`
+  (`pip install cotterbot[stl]`). Public API: `evaluate_stl`,
+  `episode_robustness`.
 - **ISO/TS 15066 power-and-force-limiting check.** A physics-grounded
   collaborative-robot safety check: per-body-region force/pressure limits
   and the collision model (`F = v·√(k·μ)`) back-solve the maximum
