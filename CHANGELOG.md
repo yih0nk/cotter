@@ -31,6 +31,11 @@
   on. Enable in a config with `adversarial.pretrained: <robot-class>`;
   inspect with `cotter pretrained list` / `prune`. This is the open
   mechanism behind the pretrained-expert-per-robot-class tier.
+- **Falsification search.** `falsify()` (CMA-ES via `cma`, the `[falsify]`
+  extra) minimizes a scenario objective to actively hunt worst-case
+  violations; `stl_scenario_objective` builds one from a policy + STL spec,
+  so the search finds the scenario that most violates the spec and returns
+  the counterexample. 1-D spaces use a deterministic sweep. CPU-only.
 - **Signal Temporal Logic (STL) specifications.** Declare behavioral
   requirements (`always (speed <= 1.5)`, `eventually (dist <= 0.05)`) in an
   `stl` config section and get a *quantitative robustness margin* per

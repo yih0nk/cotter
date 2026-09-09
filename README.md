@@ -52,7 +52,7 @@ Or from source with [Poetry](https://python-poetry.org/):
 git clone https://github.com/yih0nk/cotter.git
 cd cotter
 poetry install
-poetry run pytest   # 386 tests, unit + real-MuJoCo integration
+poetry run pytest   # 398 tests, unit + real-MuJoCo integration
 ```
 
 ## Quickstart (CLI)
@@ -140,6 +140,37 @@ Each spec becomes a `specification`-category result reporting the worst
 dict by the `variables` map. STL operators (`always`, `eventually`,
 `until`, bounded `[a,b]`) are evaluated offline with
 [`rtamt`](https://github.com/nickovic/rtamt).
+
+### Falsification (active worst-case search)
+
+The categories above *sample* scenarios; falsification *searches* for the
+worst one. Point CMA-ES at an STL-robustness objective and it hunts the
+initial condition / disturbance / parameter vector that most violates a
+spec — returning the concrete counterexample. Requires the `falsify`
+extra (`pip install cotterbot[falsify]`); a Python-API feature, since the
+scenario→env mapping is code:
+
+```python
+import cotter
+
+# how a scenario vector configures the env (masses, frictions, disturbance...)
+def apply_scenario(env, params):
+    env.unwrapped.model.body_mass[1] = params[0]      # e.g. sweep a link mass
+
+objective = cotter.stl_scenario_objective(
+    policy, env_factory, apply_scenario,
+    formula="always (tcp_speed <= 1.5)",
+    variables={"tcp_speed": {"key": "cotter/tcp_speed"}},
+)
+result = cotter.falsify(objective, lower=[0.5], upper=[5.0], max_evaluations=200)
+if result.falsified:
+    print("counterexample scenario:", result.best_params)
+```
+
+`falsify` minimizes the objective and reports whether it dropped below the
+threshold (0 = a spec violation). Derivative-free and CPU-only — each
+evaluation is one rollout; 1-D spaces use a deterministic sweep, higher
+dimensions use CMA-ES.
 
 ### ISO/TS 15066 power-and-force-limiting (PFL)
 
