@@ -73,6 +73,7 @@ from cotter.tests.stl import (
     evaluate_stl,
     extract_dataset,
 )
+from cotter.falsify import FalsificationResult, falsify, stl_scenario_objective
 from cotter.zoo import AdversaryZoo, ZooEntry, victim_hash
 from cotter.zoo.pretrained import PretrainedEntry, PretrainedZoo
 from cotter.tests.regression import (
@@ -188,6 +189,10 @@ __all__ = [
     "episode_robustness",
     "extract_dataset",
     "STLResult",
+    # falsification search
+    "falsify",
+    "stl_scenario_objective",
+    "FalsificationResult",
     # report
     "TestReport",
     "__version__",
