@@ -72,8 +72,6 @@ def falsify(
     ``threshold=0`` means "a spec violation was found". Search stops early
     once a value below ``threshold`` is seen, or at ``max_evaluations``.
     """
-    import cma
-
     lower = np.asarray(lower, dtype=float)
     upper = np.asarray(upper, dtype=float)
     if lower.shape != upper.shape:
@@ -101,18 +99,28 @@ def falsify(
             stop["hit"] = True
         return value
 
-    cma.fmin(
-        wrapped,
-        list(start),
-        sigma0,
-        {
-            "bounds": [list(lower), list(upper)],
-            "maxfevals": max_evaluations,
-            "seed": seed,
-            "verbose": -9,
-            "termination_callback": lambda es: stop["hit"],
-        },
-    )
+    if lower.size == 1:
+        # CMA-ES is unreliable in one dimension; a deterministic sweep of
+        # the interval is both robust and a better fit for a 1-D space.
+        for x in np.linspace(lower[0], upper[0], max(max_evaluations, 2)):
+            wrapped([x])
+            if stop["hit"]:
+                break
+    else:
+        import cma
+
+        cma.fmin(
+            wrapped,
+            list(start),
+            sigma0,
+            {
+                "bounds": [list(lower), list(upper)],
+                "maxfevals": max_evaluations,
+                "seed": seed,
+                "verbose": -9,
+                "termination_callback": lambda es: stop["hit"],
+            },
+        )
 
     return FalsificationResult(
         best_params=best_params,
