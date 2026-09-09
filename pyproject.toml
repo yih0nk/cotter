@@ -22,6 +22,8 @@ dependencies = [
 onnx = ["onnxruntime (>=1.17,<2.0)"]
 # Signal Temporal Logic specs: `pip install cotterbot[stl]`
 stl = ["rtamt (>=0.3,<0.4)"]
+# CMA-ES falsification search: `pip install cotterbot[falsify]`
+falsify = ["cma (>=4.0,<5.0)"]
 
 [project.scripts]
 cotter = "cotter.cli:main"
@@ -33,6 +35,7 @@ packages = [{ include = "cotter" }]
 pytest = "^8.3"
 onnxruntime = "^1.17"
 rtamt = "^0.3"
+cma = "^4.0"
 
 [build-system]
 requires = ["poetry-core>=1.9"]

@@ -36,6 +36,26 @@ files = [
 ]
 
 [[package]]
+name = "cma"
+version = "4.4.4"
+description = "CMA-ES, Covariance Matrix Adaptation Evolution Strategy for non-linear numerical optimization in Python"
+optional = false
+python-versions = "*"
+groups = ["main", "dev"]
+files = [
+    {file = "cma-4.4.4-py3-none-any.whl", hash = "sha256:edb6d02eb2aac2d54650f16a8f0c70711ff17445957de7c9de92ff7fd4b7ef38"},
+    {file = "cma-4.4.4.tar.gz", hash = "sha256:632bd654b5dce04c0eaa3166679d3e4773ce7a79eab7934e7f363c341b9a8170"},
+]
+
+[package.dependencies]
+numpy = "*"
+
+[package.extras]
+constrained-solution-tracking = ["moarchiving"]
+plotting = ["matplotlib"]
+statistical-tests = ["scipy"]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 description = "Cross-platform colored terminal text."
@@ -1504,10 +1524,11 @@ test = ["big-O", "jaraco.functools", "jaraco.itertools", "jaraco.test", "more_it
 type = ["pytest-mypy (>=1.0.1) ; platform_python_implementation != \"PyPy\""]
 
 [extras]
+falsify = ["cma"]
 onnx = ["onnxruntime"]
 stl = ["rtamt"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.12"
-content-hash = "5eb7416248d588705c1c6f51019f98d2c52d4d1155b9b36873a48e687b6e8d92"
+content-hash = "eb036c307f86e516fa066f85894c31763437ba87bb8234109631b7ef7b61d450"
