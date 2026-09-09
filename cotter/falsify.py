@@ -18,9 +18,14 @@ requirement robustness; a negative minimum is a falsifying counterexample.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Sequence
+from typing import TYPE_CHECKING, Callable, Mapping, Sequence
 
 import numpy as np
+
+if TYPE_CHECKING:
+    import gymnasium as gym
+
+    from cotter.policy import Policy
 
 
 @dataclass
@@ -117,3 +122,40 @@ def falsify(
         n_evaluations=n_eval,
         history=history,
     )
+
+
+def stl_scenario_objective(
+    policy: "Policy",
+    env_factory: Callable[[], "gym.Env"],
+    apply_scenario: Callable[["gym.Env", np.ndarray], None],
+    formula: str,
+    variables: Mapping[str, dict],
+    n_episodes: int = 1,
+    base_seed: int = 0,
+) -> Callable[[np.ndarray], float]:
+    """Build a falsification objective = the STL robustness under a scenario.
+
+    Each call: a fresh env from ``env_factory`` is configured by
+    ``apply_scenario(env, params)`` (which should set env parameters that
+    persist across reset — masses, frictions, disturbance magnitudes),
+    the policy is rolled out, and the spec's worst-episode robustness is
+    returned. Minimizing it drives the search toward a spec violation
+    (robustness < 0). Pair with :func:`falsify`.
+    """
+    from cotter.runner import make_seed_sequence, run_rollouts
+    from cotter.tests.stl import evaluate_stl
+
+    seeds = make_seed_sequence(n_episodes, base_seed)
+
+    def objective(params: np.ndarray) -> float:
+        env = env_factory()
+        try:
+            apply_scenario(env, params)
+            rollouts = run_rollouts(
+                policy, env, n_episodes, lambda *a: False, seeds=seeds, record_infos=True
+            )
+        finally:
+            env.close()
+        return evaluate_stl(rollouts.episode_infos, formula, variables).min_robustness
+
+    return objective
