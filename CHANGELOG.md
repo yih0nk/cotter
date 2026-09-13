@@ -34,7 +34,10 @@
 - **Coverage sweeps.** `sweep()` samples the operating envelope with a
   low-discrepancy Sobol sequence (`scipy.stats.qmc`) and reports the metric
   per scenario plus the failure fraction and worst region — a coverage map,
-  not one aggregate number. Composes with the falsification objective.
+  not one aggregate number. Composes with the falsification objective, is
+  filed via `report.add_coverage` (new `coverage` category), and runs from
+  a `coverage:` config section (observation-disturbance envelope) in
+  `cotter run`.
 - **Falsification search.** `falsify()` (CMA-ES via `cma`, the `[falsify]`
   extra) minimizes a scenario objective to actively hunt worst-case
   violations; `stl_scenario_objective` builds one from a policy + STL spec,

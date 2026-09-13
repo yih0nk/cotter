@@ -52,7 +52,7 @@ Or from source with [Poetry](https://python-poetry.org/):
 git clone https://github.com/yih0nk/cotter.git
 cd cotter
 poetry install
-poetry run pytest   # 407 tests, unit + real-MuJoCo integration
+poetry run pytest   # 413 tests, unit + real-MuJoCo integration
 ```
 
 ## Quickstart (CLI)
@@ -195,6 +195,19 @@ for o in result.outcomes:            # every (scenario, value, pass/fail) — a 
 
 Coverage-of-operating-envelope reporting is something regulators ask for
 (UNECE-style ODD coverage) but no open policy-eval tool provides.
+
+For the common case — coverage across the **observation-disturbance**
+envelope — a `coverage` config section runs it as part of `cotter run`
+(no code), sweeping a constant observation offset in the L∞ box and
+reporting a `coverage`-category result:
+
+```yaml
+coverage:
+  epsilon: 0.1          # L∞ budget on the observation offset
+  n_scenarios: 32
+  n_episodes: 10
+  min_success_rate: 0.8  # a scenario fails below this
+```
 
 ### ISO/TS 15066 power-and-force-limiting (PFL)
 
