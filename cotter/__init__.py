@@ -74,6 +74,7 @@ from cotter.tests.stl import (
     extract_dataset,
 )
 from cotter.falsify import FalsificationResult, falsify, stl_scenario_objective
+from cotter.coverage import CoverageResult, sobol_scenarios, sweep
 from cotter.zoo import AdversaryZoo, ZooEntry, victim_hash
 from cotter.zoo.pretrained import PretrainedEntry, PretrainedZoo
 from cotter.tests.regression import (
@@ -193,6 +194,10 @@ __all__ = [
     "falsify",
     "stl_scenario_objective",
     "FalsificationResult",
+    # coverage sweeps
+    "sweep",
+    "sobol_scenarios",
+    "CoverageResult",
     # report
     "TestReport",
     "__version__",
