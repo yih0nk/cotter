@@ -207,6 +207,20 @@ class TestRunFromConfig:
         assert specs["bounded"].passed is True
         assert specs["impossible"].passed is False
 
+    def test_coverage_sweep_category(self):
+        cfg = parse_config({
+            "env": "InvertedPendulum-v5",
+            "success": {"type": "min_length", "value": 10},
+            "coverage": {"epsilon": 0.05, "n_scenarios": 8, "n_episodes": 2,
+                         "min_success_rate": 0.5},
+        })
+        report = run_from_config(VICTIM, cfg, log=lambda m: None)
+        cov = next((r for r in report.results if r.category == "coverage"), None)
+        assert cov is not None
+        assert cov.data["n_scenarios"] == 8
+        assert "failure_fraction" in cov.data
+        assert "covered 8 scenarios" in cov.summary
+
     def test_parallel_workers_match_serial_report(self):
         # Safety + regression with n_workers > 1 must produce the same
         # numbers as the serial (default) config on shared base_seed.

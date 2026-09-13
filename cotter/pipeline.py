@@ -36,8 +36,8 @@ from cotter.tests.sprt import run_sprt
 
 # per-category seed offsets, kept stable so results are comparable across
 # configs that enable different category subsets
-_PERF_SEED, _SAFETY_SEED, _REGRESSION_SEED, _ADV_SEED, _ISO_SEED, _STL_SEED = (
-    100, 200, 300, 400, 500, 600
+_PERF_SEED, _SAFETY_SEED, _REGRESSION_SEED, _ADV_SEED, _ISO_SEED, _STL_SEED, _COV_SEED = (
+    100, 200, 300, 400, 500, 600, 700
 )
 
 
@@ -321,6 +321,48 @@ def run_from_config(
                 log(f"[cotter]   pretrained '{a.pretrained}' ({surface}) transfer: "
                     f"{transfer.clean_success_rate:.0%} clean -> "
                     f"{transfer.adversarial_success_rate:.0%} perturbed")
+
+    if cfg.coverage is not None:
+        import numpy as np
+
+        from cotter.coverage import sweep
+
+        cov = cfg.coverage
+        obs_space = env.observation_space
+        if not isinstance(obs_space, gym.spaces.Box):
+            raise ValueError(
+                f"coverage sweep requires a Box observation space; {cfg.env} has "
+                f"{type(obs_space).__name__}"
+            )
+        shape = obs_space.shape
+        dim = int(np.prod(shape))
+        cov_seeds = make_seed_sequence(cov.n_episodes, cfg.base_seed + _COV_SEED)
+
+        class _OffsetPolicy:
+            def __init__(self, offset):
+                self._offset = offset
+                self.name = f"{policy.name}+offset"
+
+            def predict(self, obs):
+                return policy.predict(np.asarray(obs, dtype=float) + self._offset)
+
+        def coverage_objective(params):
+            offset = np.asarray(params, dtype=float).reshape(shape)
+            rs = run_rollouts(
+                _OffsetPolicy(offset), env, cov.n_episodes, success_fn,
+                seeds=cov_seeds, record_infos=False,
+            )
+            return rs.success_rate
+
+        log(f"[cotter] coverage: {cov.n_scenarios} scenarios over the observation "
+            f"disturbance box (eps={cov.epsilon}), {cov.n_episodes} episodes each")
+        result = sweep(
+            coverage_objective, [-cov.epsilon] * dim, [cov.epsilon] * dim,
+            n_scenarios=cov.n_scenarios, threshold=cov.min_success_rate, seed=cov.seed,
+        )
+        report.add_coverage(result)
+        log(f"[cotter]   => {result.n_failures}/{result.n_scenarios} scenarios below "
+            f"{cov.min_success_rate:.0%} (worst success {result.min_value:.0%})")
 
     if cfg.report is not None:
         path = report.to_json(cfg.report)
