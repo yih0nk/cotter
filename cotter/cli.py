@@ -108,6 +108,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="policy file to re-hash against the report's manifest",
     )
 
+    diff = subparsers.add_parser(
+        "diff", help="compare two reports; fail if any passing check regressed"
+    )
+    diff.add_argument("before", type=Path, help="baseline JSON report")
+    diff.add_argument("after", type=Path, help="candidate JSON report")
+
     zoo = subparsers.add_parser("zoo", help="inspect the cached adversary zoo")
     zoo.add_argument("--root", type=Path, default=None, help="zoo root (default ~/.cotter/zoo)")
     zoo_sub = zoo.add_subparsers(dest="zoo_command", required=True)
@@ -250,6 +256,35 @@ def cmd_verify(args: argparse.Namespace) -> int:
     return 0 if result.ok else 1
 
 
+def cmd_diff(args: argparse.Namespace) -> int:
+    from cotter.diff import diff_reports, load_report
+
+    try:
+        before = load_report(args.before)
+        after = load_report(args.after)
+    except FileNotFoundError as exc:
+        print(f"error: report not found: {exc.filename}", file=sys.stderr)
+        return 2
+    except (ValueError, OSError) as exc:
+        print(f"error: could not read report: {exc}", file=sys.stderr)
+        return 2
+
+    result = diff_reports(before, after)
+    symbol = {
+        "regressed": "regressed",
+        "improved": "improved ",
+        "added": "added    ",
+        "removed": "removed  ",
+        "unchanged": "unchanged",
+    }
+    print(f"diff {args.before} -> {args.after}")
+    for d in result.deltas:
+        if d.status != "unchanged":
+            print(f"  [{symbol[d.status]}] {d.category}/{d.name}")
+    print(f"=> {result.summary()}")
+    return 1 if result.regressed else 0
+
+
 def cmd_pretrained(args: argparse.Namespace) -> int:
     from cotter.zoo.pretrained import PretrainedZoo
 
@@ -326,6 +361,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_compare(args)
     if args.command == "verify":
         return cmd_verify(args)
+    if args.command == "diff":
+        return cmd_diff(args)
     if args.command == "zoo":
         return cmd_zoo(args)
     if args.command == "pretrained":
