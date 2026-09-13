@@ -31,6 +31,10 @@
   on. Enable in a config with `adversarial.pretrained: <robot-class>`;
   inspect with `cotter pretrained list` / `prune`. This is the open
   mechanism behind the pretrained-expert-per-robot-class tier.
+- **`cotter diff` (safety budget).** Compare two reports and exit non-zero
+  if any previously-passing check now fails — classifying every check as
+  regressed / improved / added / removed across the whole battery. Public
+  API: `diff_reports`.
 - **Coverage sweeps.** `sweep()` samples the operating envelope with a
   low-discrepancy Sobol sequence (`scipy.stats.qmc`) and reports the metric
   per scenario plus the failure fraction and worst region — a coverage map,

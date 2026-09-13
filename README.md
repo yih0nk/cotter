@@ -52,7 +52,7 @@ Or from source with [Poetry](https://python-poetry.org/):
 git clone https://github.com/yih0nk/cotter.git
 cd cotter
 poetry install
-poetry run pytest   # 413 tests, unit + real-MuJoCo integration
+poetry run pytest   # 423 tests, unit + real-MuJoCo integration
 ```
 
 ## Quickstart (CLI)
@@ -310,6 +310,20 @@ poetry run cotter compare \
 Like `run`, it accepts `--report` (JSON) and `--report-html` to write the
 comparison result to disk — handy for archiving the artifact or feeding a
 PR comment.
+
+### Diffing reports (safety budget)
+
+Where `compare` re-runs the regression test, `cotter diff` compares two
+existing **reports** and fails if any previously-passing check now fails —
+a safety-budget gate across the *whole* battery, not just regression:
+
+```sh
+cotter diff baseline_report.json candidate_report.json
+```
+
+Each check is classified regressed / improved / added / removed; exit 1
+means a check that used to pass now fails (0 otherwise, 2 on a bad
+report). Store a baseline report and diff every retrain against it.
 
 ### Parallel rollouts
 
