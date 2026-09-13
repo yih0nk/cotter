@@ -25,6 +25,11 @@ Example::
       baseline: artifacts/victim_ppo_inverted_pendulum.zip
       n_pairs: 30
       alpha: 0.05
+    coverage:
+      epsilon: 0.1
+      n_scenarios: 32
+      n_episodes: 10
+      min_success_rate: 0.8
     stl:
       variables:
         speed: cotter/tcp_speed
@@ -168,6 +173,24 @@ class STLConfig:
 
 
 @dataclass
+class CoverageConfig:
+    """Observation-disturbance coverage: sweep a constant observation offset
+    across the L-inf box [-epsilon, epsilon] and report the success-rate map."""
+
+    epsilon: float  # L-inf budget on the constant observation offset
+    n_scenarios: int = 32
+    n_episodes: int = 10
+    min_success_rate: float = 0.8  # a scenario fails below this
+    seed: int = 0
+
+    def __post_init__(self):
+        if self.epsilon <= 0:
+            raise ValueError(f"coverage.epsilon must be positive; got {self.epsilon}")
+        if self.n_scenarios < 1 or self.n_episodes < 1:
+            raise ValueError("coverage.n_scenarios and n_episodes must be >= 1")
+
+
+@dataclass
 class RunConfig:
     env: str
     success: dict
@@ -180,6 +203,7 @@ class RunConfig:
     adversarial: AdversarialConfig | None = None
     iso_ts_15066: ISO15066Config | None = None
     stl: STLConfig | None = None
+    coverage: CoverageConfig | None = None
     report: Path | None = None
     report_html: Path | None = None
     report_junit: Path | None = None
@@ -191,7 +215,7 @@ class RunConfig:
 
 _KNOWN_TOP_KEYS = {
     "env", "algo", "base_seed", "backend", "success",
-    "performance", "safety", "regression", "adversarial", "iso_ts_15066", "stl",
+    "performance", "safety", "regression", "adversarial", "iso_ts_15066", "stl", "coverage",
     "report", "report_html", "report_junit", "report_md",
 }
 
@@ -264,6 +288,7 @@ def parse_config(data: dict, config_dir: Path | None = None) -> RunConfig:
         adversarial=_section(data, "adversarial", AdversarialConfig),
         iso_ts_15066=_section(data, "iso_ts_15066", ISO15066Config),
         stl=_section(data, "stl", STLConfig),
+        coverage=_section(data, "coverage", CoverageConfig),
         report=resolve(data["report"]) if "report" in data else None,
         report_html=resolve(data["report_html"]) if "report_html" in data else None,
         report_junit=resolve(data["report_junit"]) if "report_junit" in data else None,

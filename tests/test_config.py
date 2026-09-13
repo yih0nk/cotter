@@ -235,3 +235,25 @@ class TestSTLConfig:
                 "env": "X-v1", "success": {"type": "min_return", "value": 1},
                 "stl": {"variables": {}, "specs": [{"name": "x", "formula": "true"}]},
             })
+
+
+class TestCoverageConfig:
+    def test_parses(self):
+        cfg = parse_config({
+            "env": "X-v1", "success": {"type": "min_return", "value": 1},
+            "coverage": {"epsilon": 0.1, "n_scenarios": 16, "min_success_rate": 0.9},
+        })
+        assert cfg.coverage.epsilon == 0.1
+        assert cfg.coverage.n_scenarios == 16
+        assert cfg.coverage.n_episodes == 10  # default
+
+    def test_absent_is_none(self):
+        cfg = parse_config({"env": "X-v1", "success": {"type": "min_return", "value": 1}})
+        assert cfg.coverage is None
+
+    def test_nonpositive_epsilon_rejected(self):
+        with pytest.raises(ConfigError):
+            parse_config({
+                "env": "X-v1", "success": {"type": "min_return", "value": 1},
+                "coverage": {"epsilon": 0.0},
+            })
