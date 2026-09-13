@@ -52,7 +52,7 @@ Or from source with [Poetry](https://python-poetry.org/):
 git clone https://github.com/yih0nk/cotter.git
 cd cotter
 poetry install
-poetry run pytest   # 398 tests, unit + real-MuJoCo integration
+poetry run pytest   # 407 tests, unit + real-MuJoCo integration
 ```
 
 ## Quickstart (CLI)
@@ -171,6 +171,30 @@ if result.falsified:
 threshold (0 = a spec violation). Derivative-free and CPU-only — each
 evaluation is one rollout; 1-D spaces use a deterministic sweep, higher
 dimensions use CMA-ES.
+
+### Coverage sweeps (operating-envelope coverage)
+
+A green report shouldn't be able to hide untested regions. Coverage
+sweeps the scenario space with a low-discrepancy **Sobol** sequence and
+reports the metric *as a function of the scenario* — the failure fraction
+and worst region, not one aggregate number. Same `objective` as
+falsification (sweep it here, search it there), CPU-only, no extra:
+
+```python
+import cotter
+
+result = cotter.sweep(
+    objective,                       # e.g. cotter.stl_scenario_objective(...)
+    lower=[0.5, 0.0], upper=[5.0, 1.0],   # the operating envelope
+    n_scenarios=64,
+)
+print(result.summary())              # "covered 64 scenarios, 7 below threshold (11% failure region) ..."
+for o in result.outcomes:            # every (scenario, value, pass/fail) — a coverage map
+    ...
+```
+
+Coverage-of-operating-envelope reporting is something regulators ask for
+(UNECE-style ODD coverage) but no open policy-eval tool provides.
 
 ### ISO/TS 15066 power-and-force-limiting (PFL)
 

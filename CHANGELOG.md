@@ -31,6 +31,10 @@
   on. Enable in a config with `adversarial.pretrained: <robot-class>`;
   inspect with `cotter pretrained list` / `prune`. This is the open
   mechanism behind the pretrained-expert-per-robot-class tier.
+- **Coverage sweeps.** `sweep()` samples the operating envelope with a
+  low-discrepancy Sobol sequence (`scipy.stats.qmc`) and reports the metric
+  per scenario plus the failure fraction and worst region — a coverage map,
+  not one aggregate number. Composes with the falsification objective.
 - **Falsification search.** `falsify()` (CMA-ES via `cma`, the `[falsify]`
   extra) minimizes a scenario objective to actively hunt worst-case
   violations; `stl_scenario_objective` builds one from a policy + STL spec,
