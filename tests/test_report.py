@@ -177,3 +177,21 @@ class TestStlAdapter:
         report.add_stl(evaluate_stl(eps, "always (speed <= 1.5)", {"speed": {"key": "speed"}}, name="cap"))
         assert report.results[0].passed is False
         assert not report.overall_passed
+
+
+class TestCoverageAdapter:
+    def test_coverage_pass(self, report):
+        from cotter.coverage import sweep
+
+        report.add_coverage(sweep(lambda p: 1.0, [0], [1], n_scenarios=8, threshold=0.0))
+        r = report.results[0]
+        assert r.category == "coverage"
+        assert r.passed is True
+        assert "covered 8 scenarios" in r.summary
+
+    def test_coverage_fail_when_region_fails(self, report):
+        from cotter.coverage import sweep
+
+        report.add_coverage(sweep(lambda p: -1.0, [0], [1], n_scenarios=8, threshold=0.0))
+        assert report.results[0].passed is False
+        assert not report.overall_passed
