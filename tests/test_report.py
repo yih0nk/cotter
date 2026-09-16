@@ -195,3 +195,27 @@ class TestCoverageAdapter:
         report.add_coverage(sweep(lambda p: -1.0, [0], [1], n_scenarios=8, threshold=0.0))
         assert report.results[0].passed is False
         assert not report.overall_passed
+
+
+class TestTraceabilityAdapter:
+    def test_traceability_complete(self, report):
+        from cotter.traceability import build_traceability
+
+        report.add_sprt(make_sprt_pass())  # a passing 'sprt_success_rate' result
+        t = build_traceability(
+            report.results, {"c1": {"description": "x", "checks": ["sprt_success_rate"]}}
+        )
+        # fresh report for the adapter check
+        report.add_traceability(t)
+        r = report.results[-1]
+        assert r.category == "traceability"
+        assert r.passed is True
+        assert "COMPLETE" in r.summary
+
+    def test_traceability_gap_fails(self, report):
+        from cotter.traceability import build_traceability
+
+        t = build_traceability([], {"c1": {"checks": ["missing"]}})
+        report.add_traceability(t)
+        assert report.results[-1].passed is False
+        assert not report.overall_passed

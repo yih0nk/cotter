@@ -16,6 +16,7 @@ from pathlib import Path
 import numpy as np
 
 from cotter.coverage import CoverageResult
+from cotter.traceability import TraceabilityResult
 from cotter.tests.iso15066 import PFLDecision, PFLResult
 from cotter.tests.regression import RegressionDecision, RegressionResult
 from cotter.tests.stl import STLResult
@@ -145,6 +146,10 @@ class TestReport:
                 f"for '{v.region}' (implied {v.implied_force:.0f} N > {v.force_limit:.0f} N)"
             )
         self.add("safety", name, result.decision == PFLDecision.PASS, summary, result.to_dict())
+
+    def add_traceability(self, result: TraceabilityResult, name: str = "clause_traceability") -> None:
+        """File a clause-traceability matrix; fails if any clause failed or is unverified."""
+        self.add("traceability", name, result.all_verified, result.summary(), result.to_dict())
 
     def add_coverage(self, result: CoverageResult, name: str = "coverage") -> None:
         """File an operating-envelope coverage sweep; fails if any region failed."""
