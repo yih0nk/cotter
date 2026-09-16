@@ -76,6 +76,7 @@ from cotter.tests.stl import (
 from cotter.falsify import FalsificationResult, falsify, stl_scenario_objective
 from cotter.coverage import CoverageResult, sobol_scenarios, sweep
 from cotter.diff import DiffResult, diff_reports
+from cotter.traceability import TraceabilityResult, build_traceability
 from cotter.zoo import AdversaryZoo, ZooEntry, victim_hash
 from cotter.zoo.pretrained import PretrainedEntry, PretrainedZoo
 from cotter.tests.regression import (
@@ -202,6 +203,9 @@ __all__ = [
     # report diff
     "diff_reports",
     "DiffResult",
+    # clause traceability
+    "build_traceability",
+    "TraceabilityResult",
     # report
     "TestReport",
     "__version__",
