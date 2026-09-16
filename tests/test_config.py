@@ -257,3 +257,25 @@ class TestCoverageConfig:
                 "env": "X-v1", "success": {"type": "min_return", "value": 1},
                 "coverage": {"epsilon": 0.0},
             })
+
+
+class TestTraceabilityConfig:
+    def test_parses(self):
+        cfg = parse_config({
+            "env": "X-v1", "success": {"type": "min_return", "value": 1},
+            "traceability": {
+                "EHSR-1.3.7": {"description": "moving parts", "checks": ["hard_limits"]},
+            },
+        })
+        assert cfg.traceability["EHSR-1.3.7"]["checks"] == ["hard_limits"]
+
+    def test_absent_is_none(self):
+        cfg = parse_config({"env": "X-v1", "success": {"type": "min_return", "value": 1}})
+        assert cfg.traceability is None
+
+    def test_clause_without_checks_rejected(self):
+        with pytest.raises(ConfigError, match="checks"):
+            parse_config({
+                "env": "X-v1", "success": {"type": "min_return", "value": 1},
+                "traceability": {"c": {"description": "x"}},
+            })

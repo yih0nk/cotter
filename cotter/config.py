@@ -30,6 +30,10 @@ Example::
       n_scenarios: 32
       n_episodes: 10
       min_success_rate: 0.8
+    traceability:
+      EHSR-1.3.7:
+        description: "moving parts of machinery"
+        checks: [hard_limits, iso_ts_15066_pfl]
     stl:
       variables:
         speed: cotter/tcp_speed
@@ -204,6 +208,7 @@ class RunConfig:
     iso_ts_15066: ISO15066Config | None = None
     stl: STLConfig | None = None
     coverage: CoverageConfig | None = None
+    traceability: dict | None = None  # clause id -> {description, checks: [...]}
     report: Path | None = None
     report_html: Path | None = None
     report_junit: Path | None = None
@@ -216,7 +221,7 @@ class RunConfig:
 _KNOWN_TOP_KEYS = {
     "env", "algo", "base_seed", "backend", "success",
     "performance", "safety", "regression", "adversarial", "iso_ts_15066", "stl", "coverage",
-    "report", "report_html", "report_junit", "report_md",
+    "traceability", "report", "report_html", "report_junit", "report_md",
 }
 
 
@@ -238,6 +243,20 @@ def _section(data: dict, name: str, cls, **transforms):
         return cls(**kwargs)
     except (TypeError, ValueError) as exc:
         raise ConfigError(f"invalid '{name}' section: {exc}") from exc
+
+
+def _parse_traceability(raw) -> dict | None:
+    """Validate the clause->{description, checks} traceability mapping."""
+    if raw is None:
+        return None
+    if not isinstance(raw, dict) or not raw:
+        raise ConfigError("'traceability' must be a non-empty mapping of clause -> {checks: [...]}")
+    for clause, spec in raw.items():
+        if not isinstance(spec, dict) or not isinstance(spec.get("checks"), list) or not spec["checks"]:
+            raise ConfigError(
+                f"traceability clause '{clause}' needs a non-empty 'checks' list"
+            )
+    return dict(raw)
 
 
 def _parse_limits(raw) -> list[SafetyLimit]:
@@ -289,6 +308,7 @@ def parse_config(data: dict, config_dir: Path | None = None) -> RunConfig:
         iso_ts_15066=_section(data, "iso_ts_15066", ISO15066Config),
         stl=_section(data, "stl", STLConfig),
         coverage=_section(data, "coverage", CoverageConfig),
+        traceability=_parse_traceability(data.get("traceability")),
         report=resolve(data["report"]) if "report" in data else None,
         report_html=resolve(data["report_html"]) if "report_html" in data else None,
         report_junit=resolve(data["report_junit"]) if "report_junit" in data else None,
