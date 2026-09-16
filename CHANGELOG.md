@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 (unreleased)
+## 0.3.0 — 2026-09-16
 
 - **ONNX policy loader.** Load `.onnx` policies via `load_policy` (the new
   `OnnxPolicy`, backed by `onnxruntime`). Install the optional extra with
