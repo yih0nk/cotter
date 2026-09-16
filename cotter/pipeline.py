@@ -364,6 +364,14 @@ def run_from_config(
         log(f"[cotter]   => {result.n_failures}/{result.n_scenarios} scenarios below "
             f"{cov.min_success_rate:.0%} (worst success {result.min_value:.0%})")
 
+    if cfg.traceability is not None:
+        # runs last, so it sees every other category's result
+        from cotter.traceability import build_traceability
+
+        trace = build_traceability(report.results, cfg.traceability)
+        report.add_traceability(trace)
+        log(f"[cotter] traceability: {trace.summary()}")
+
     if cfg.report is not None:
         path = report.to_json(cfg.report)
         log(f"[cotter] JSON report written to {path}")

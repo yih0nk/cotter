@@ -221,6 +221,24 @@ class TestRunFromConfig:
         assert "failure_fraction" in cov.data
         assert "covered 8 scenarios" in cov.summary
 
+    def test_traceability_matrix(self):
+        cfg = parse_config({
+            "env": "InvertedPendulum-v5",
+            "success": {"type": "min_length", "value": 10},
+            "safety": {"n_episodes": 2, "limits": {"cotter/joint_velocities": 100.0}},
+            "traceability": {
+                "EHSR-1.3.7": {"description": "moving parts", "checks": ["hard_limits"]},
+                "uncovered": {"description": "nothing", "checks": ["missing_check"]},
+            },
+        })
+        report = run_from_config(VICTIM, cfg, log=lambda m: None)
+        trace = next((r for r in report.results if r.category == "traceability"), None)
+        assert trace is not None
+        by = {c["clause"]: c["status"] for c in trace.data["clauses"]}
+        assert by["EHSR-1.3.7"] == "verified"   # hard_limits passed
+        assert by["uncovered"] == "unverified"  # no matching check
+        assert trace.passed is False            # a gap exists
+
     def test_parallel_workers_match_serial_report(self):
         # Safety + regression with n_workers > 1 must produce the same
         # numbers as the serial (default) config on shared base_seed.
