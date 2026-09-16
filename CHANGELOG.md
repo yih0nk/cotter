@@ -31,6 +31,11 @@
   on. Enable in a config with `adversarial.pretrained: <robot-class>`;
   inspect with `cotter pretrained list` / `prune`. This is the open
   mechanism behind the pretrained-expert-per-robot-class tier.
+- **Clause traceability.** A `traceability` config section maps regulatory
+  clauses (EHSR / ISO / AI Act) to the checks that evidence them and
+  reports each clause verified / failed / **unverified** — the auditor's
+  coverage-gap view. Filed as a `traceability` report category. Public API:
+  `build_traceability`.
 - **`cotter diff` (safety budget).** Compare two reports and exit non-zero
   if any previously-passing check now fails — classifying every check as
   regressed / improved / added / removed across the whole battery. Public

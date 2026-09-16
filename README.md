@@ -52,7 +52,7 @@ Or from source with [Poetry](https://python-poetry.org/):
 git clone https://github.com/yih0nk/cotter.git
 cd cotter
 poetry install
-poetry run pytest   # 423 tests, unit + real-MuJoCo integration
+poetry run pytest   # 435 tests, unit + real-MuJoCo integration
 ```
 
 ## Quickstart (CLI)
@@ -234,6 +234,28 @@ would produce a force over that region's limit, reporting the binding
 > widely-published approximations and are **user-editable** — confirm them
 > against the purchased ISO/TS 15066 before relying on them for
 > certification.
+
+### Clause traceability
+
+Conformity assessment is clause-by-clause. Declare which checks evidence
+each regulatory clause and Cotter reports every clause as verified,
+failed, or **unverified** — the coverage-gap view an auditor asks for:
+
+```yaml
+traceability:
+  EHSR-1.3.7:
+    description: "moving parts of machinery"
+    checks: [hard_limits, iso_ts_15066_pfl]
+  AI-Act-15:
+    description: "robustness & accuracy"
+    checks: [learned_ppo, speed_cap]
+```
+
+A clause is *failed* if any of its checks failed, *verified* if it has a
+passing check and none failed, else *unverified* (no evidence). The result
+is a `traceability`-category entry that fails the report if any clause is
+failed or unverified. (The certified clause *thresholds* are the paid
+layer; this open mapping ties your checks to the clauses you declare.)
 
 ### Reports (JSON + HTML + JUnit + Markdown)
 
